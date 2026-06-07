@@ -13,6 +13,15 @@
 - 创建 GitHub 核心文档：`README.md`、`PLAN.md`、`PROGRESS.md`。
 - 按要求收敛 GitHub 内容：只放项目介绍、正式计划和单一进展文件；不上传原始数据、脚本、历史过程文档和大体积模型文件。
 
+## 2026-06-07 23:42:26 CST
+
+- 扩展 `PLAN.md` 为可执行级详细方案。
+- 新增数据预处理流程：FASTA 标准化、注释标准化、assembly group 级切分、窗口化、shard 构建。
+- 新增模型输入设计：单碱基 token、窗口样本字段、张量形态、mask 策略和 annotation-aware 标签。
+- 明确模型架构依据：采用单碱基、长上下文、bidirectional MambaDNA、reverse-complement consistency，参考 Nucleotide Transformer、DNABERT-2、HyenaDNA、Caduceus、PlantCaduceus、Evo 2 和 DNA foundation model benchmark。
+- 新增资源和耗时估算：数据工程约 2-4 天；2 张 A100 40G 下 Stage 1 约 23-46 天、Stage 2 约 5-14 天、初版总周期约 35-78 天；4 卡约 23-49 天；8 卡约 16-34 天。
+- 新增存储估算：建议项目可用空间 4-8 TB。
+
 ## 后续阶段
 
 - 2026-06-07 之后：生成 genome-only 训练样本清单。
