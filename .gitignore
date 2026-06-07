@@ -1,0 +1,45 @@
+# Raw downloaded biological data: keep local, do not push to GitHub.
+data/raw/
+data/nonredundant/
+data/processed/
+data/training/
+data/cache/
+
+# Large model artifacts.
+checkpoints/
+models/
+runs/
+wandb/
+tensorboard/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Compressed large sequence files.
+*.fa
+*.fna
+*.fasta
+*.fq
+*.fastq
+*.fa.gz
+*.fna.gz
+*.fasta.gz
+*.fq.gz
+*.fastq.gz
+*.gff3.gz
+*.gtf.gz
+*.zip
+*.tar
+*.tar.gz
+
+# Runtime noise.
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.venv/
+venv/
+
+# Logs can be large; keep only curated status docs in Git.
+logs/
