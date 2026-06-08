@@ -136,6 +136,12 @@
 - 新增每阶段 token 组成、短长度 replay、context_bucket/region_bucket 两级采样、同长度 micro-batch、gradient accumulation 层面混合、每长度 bucket loss 记录和进入下一阶段条件。
 - 训练时间估算同步改为 Stage 1A/1B/1C 分段估算，Stage 1 总预算仍以约 `130B tokens` 为目标。
 
+## 2026-06-08 23:18:50 CST
+
+- 根据当前正式计划确认 CPU compact 预处理不需要重跑；已提交的并行索引作业 `job_id=8462868` 和依赖合并作业 `job_id=8462872` 继续作为正式流程保留。
+- 取消旧串行 compact 索引作业 `job_id=8462433`，该作业已被并行分片流程替代，继续运行会浪费计算节点资源。
+- 当前队列只保留正式并行索引和自动合并依赖作业。
+
 ## 后续阶段
 
 - 2026-06-08 之后：等待优化后的并行 compact 索引作业 `job_id=8462868` 和合并作业 `job_id=8462872` 完成，核对 `indexes_parallel/sequence_index.tsv`、`indexes_parallel/filtered_windows.tsv` 和 `indexes_parallel/region_sampling_weights.tsv`。
