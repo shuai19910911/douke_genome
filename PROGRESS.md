@@ -111,9 +111,18 @@
 - 在 `README.md` 顶部新增“技术路线图”展示区，GitHub 首页可直接看到该图片。
 - compact 搬运包内同步保留同一张路线图副本，路径为 `data/compact_douke_v1/docs/legumegenomefm_compact_technical_route.png`。
 
+## 2026-06-08 13:16:37 CST
+
+- 发现完整 compact 索引构建作业 `job_id=8462433` 实际主要是串行遍历 genome，已运行约 1 小时 48 分钟，`filtered_windows.tsv` 约 616 万行，预计整体耗时偏长。
+- 按 q03-q08 优先策略改为 Slurm array 分片索引流程：251 个结构注释 genome 分别生成独立 part 文件，避免多个任务同时写同一个索引。
+- 已生成 array 使用的 `compact_ids.txt`，共 251 个 compact genome ID。
+- 已提交并行索引作业 `job_id=8462866`：分区 `q03,q04,q05,q07,q08`，每个 task `4 cores / 100G memory`，并发上限 `%6`。
+- 已提交自动合并依赖作业 `job_id=8462867`：等待 `8462866` 全部成功后合并 `indexes_parallel/parts/` 到 `indexes_parallel/sequence_index.tsv`、`indexes_parallel/filtered_windows.tsv` 和 `indexes_parallel/region_sampling_weights.tsv`。
+- 旧串行作业 `job_id=8462433` 暂未取消，避免直接丢弃已运行结果；正式 compact 索引以后优先使用并行流程产物 `data/compact_douke_v1/indexes_parallel/`。
+
 ## 后续阶段
 
-- 2026-06-08 之后：等待完整 compact 索引构建作业 `job_id=8462433` 完成，核对 `sequence_index.tsv`、`filtered_windows.tsv` 和 `region_sampling_weights.tsv`。
+- 2026-06-08 之后：等待并行 compact 索引作业 `job_id=8462866` 和合并作业 `job_id=8462867` 完成，核对 `indexes_parallel/sequence_index.tsv`、`indexes_parallel/filtered_windows.tsv` 和 `indexes_parallel/region_sampling_weights.tsv`。
 - 2026-06-08 之后：生成 leakage-safe split table，保证 duplicate group、assembly、interval、gene 不跨 split。
 - 2026-06-08 之后：准备 LegumeGenomeFM-330M 训练配置。
 - 2026-06-08 之后：启动正式结构注释驱动预训练并记录 loss、mask accuracy、region F1、splice AUPRC、RC consistency 和下游验证指标。
