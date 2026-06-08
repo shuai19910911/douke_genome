@@ -2,6 +2,10 @@
 
 豆科基因组基础模型项目。
 
+## 技术路线图
+
+![LegumeGenomeFM compact 技术路线图](docs/legumegenomefm_compact_technical_route.png)
+
 ## 当前目标
 
 构建一个面向豆科（Fabaceae/Leguminosae）的 DNA foundation model，用于学习豆科跨属、跨物种的基因组序列模式，并支持基因结构识别、功能区域表征、TE/重复序列识别、启动子/调控区域建模、基因功能预测和大豆育种相关下游任务。

@@ -104,6 +104,13 @@
 - 完整 compact 索引构建作业 `job_id=8462433` 仍在 `cu19` 运行，已运行约 34 分钟。
 - 当前 compact 包状态：`data/compact_douke_v1/` 占用约 81G；`filtered_windows.tsv` 已生成 1,725,169 行；`sequence_index.tsv` 仍在等待作业结束或缓冲刷新。
 
+## 2026-06-08 12:19:40 CST
+
+- 按要求重新生成更大的 `LegumeGenomeFM` 中文技术路线图，覆盖原本地图片。
+- 将路线图加入 GitHub 跟踪范围：`docs/legumegenomefm_compact_technical_route.png`。
+- 在 `README.md` 顶部新增“技术路线图”展示区，GitHub 首页可直接看到该图片。
+- compact 搬运包内同步保留同一张路线图副本，路径为 `data/compact_douke_v1/docs/legumegenomefm_compact_technical_route.png`。
+
 ## 后续阶段
 
 - 2026-06-08 之后：等待完整 compact 索引构建作业 `job_id=8462433` 完成，核对 `sequence_index.tsv`、`filtered_windows.tsv` 和 `region_sampling_weights.tsv`。
