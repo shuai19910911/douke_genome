@@ -2,13 +2,13 @@
 
 ## 2026-06-07 22:56:09 CST
 
-- 确定项目名称为 `douke_genome`。
+- 初始仓库名沿用早期占位名称，后续正式模型名调整为 `LegumeGenomeFM`。
 - 已完成豆科基因组数据全局去冗余索引整理。
 - 当前可用于训练的去冗余豆科基因组为 493 个，覆盖 69 个属。
 - genome QC 状态为 493/493 `ok`。
 - 已确认注释覆盖：结构注释 251 个、功能注释 128 个、TE/repeat 注释 47 个、三类注释齐全 20 个。
 - 确定训练策略：保留全部 493 个基因组，训练时使用属级平衡采样。
-- 确定正式主模型路线：DoukeGenome-330M，双向、反向互补等变、长上下文 DNA 模型。
+- 确定正式主模型路线：LegumeGenomeFM-330M，双向、反向互补等变、长上下文 DNA 模型。
 - 确定资源策略：优先适配 2 张 A100 40G GPU，使用 bf16、梯度检查点、DDP/ZeRO-2、梯度累积；如果正式训练吞吐不足，则扩展到更多 GPU，而不是改成非正式小模型。
 - 创建 GitHub 核心文档：`README.md`、`PLAN.md`、`PROGRESS.md`。
 - 按要求收敛 GitHub 内容：只放项目介绍、正式计划和单一进展文件；不上传原始数据、脚本、历史过程文档和大体积模型文件。
@@ -77,9 +77,9 @@
 
 ## 2026-06-08 11:18:59 CST
 
-- 生成推荐 compact 搬运包的数据预处理脚本和 Slurm 脚本：`scripts/prepare_compact_douke.py`、`scripts/slurm_prepare_compact_douke_manifest_only.sh`、`scripts/slurm_prepare_compact_douke.sh`、`scripts/gpu_smoke_test_command.sh`。
-- 建立 compact 搬运包目录：`data/compact_douke_v1/`，包含 `manifests/`、`indexes/`、`files/genomes/`、`files/annotations/`、`files/repeats/`、`docs/` 和 `logs/`。
-- 生成并保存技术路线图图片：`docs/douke_compact_technical_route.png`，并在 `data/compact_douke_v1/docs/` 中保留一份，方便后续随 compact 包搬运。
+- 生成推荐 compact 搬运包的数据预处理脚本和 Slurm 脚本，本地脚本保存在 `scripts/`，GPU smoke test 脚本也已生成。
+- 建立 compact 搬运包目录，包含 `manifests/`、`indexes/`、`files/genomes/`、`files/annotations/`、`files/repeats/`、`docs/` 和 `logs/`。
+- 生成并保存技术路线图图片，并在 compact 搬运包的 `docs/` 中保留一份，方便后续随 compact 包搬运。
 - 生成详细数据预处理技术路线文档：`docs/compact_preprocessing_route.md`，说明输入数据、过滤策略、目录结构、CPU Slurm 命令、GPU smoke test 命令、搬运命令和资源耗时估算。
 - 已提交 manifest-only 预检查作业：`job_id=8462014`，分区 `q07`，节点 `cu16`，资源 `4 cores / 16G memory`；该作业用于先组织 compact 文件链接并生成清单，确认无误后再提交 30 核 150G 的完整索引构建作业。
 
@@ -91,9 +91,15 @@
 - leakage-safe split 当前分布：train 191、validation 33、test 27。
 - 已提交完整 compact 索引构建作业：`job_id=8462433`，分区 `q07`，节点 `cu19`，资源 `30 cores / 150G memory`；该作业将生成 `sequence_index.tsv`、`filtered_windows.tsv` 和 `region_sampling_weights.tsv`。
 
+## 2026-06-08 11:36:15 CST
+
+- 将正式项目和模型名称从早期占位名称调整为更适合论文、GitHub 和模型发布的 `LegumeGenomeFM`。
+- 正式主模型名更新为 `LegumeGenomeFM-330M`，中文描述为“豆科基因组基础模型”。
+- 保留当前正在运行作业使用的本地 legacy 目录和脚本名，避免影响 `job_id=8462433` 的路径依赖；对外文档、论文和模型命名统一使用 `LegumeGenomeFM`。
+
 ## 后续阶段
 
 - 2026-06-08 之后：等待完整 compact 索引构建作业 `job_id=8462433` 完成，核对 `sequence_index.tsv`、`filtered_windows.tsv` 和 `region_sampling_weights.tsv`。
 - 2026-06-08 之后：生成 leakage-safe split table，保证 duplicate group、assembly、interval、gene 不跨 split。
-- 2026-06-08 之后：准备 DoukeGenome-330M 训练配置。
+- 2026-06-08 之后：准备 LegumeGenomeFM-330M 训练配置。
 - 2026-06-08 之后：启动正式结构注释驱动预训练并记录 loss、mask accuracy、region F1、splice AUPRC、RC consistency 和下游验证指标。

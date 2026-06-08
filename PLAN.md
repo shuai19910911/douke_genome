@@ -1,4 +1,4 @@
-# DoukeGenome 豆科结构注释驱动基因组预训练大模型正式训练方案
+# LegumeGenomeFM 豆科结构注释驱动基因组预训练大模型正式训练方案
 
 更新时间：2026-06-08 10:39:24 CST
 
@@ -14,7 +14,7 @@ has_structural_annotation = yes
 
 目标模型不是一个只会拟合大豆序列分布的 genome-only 模型，而是一个显式学习豆科基因结构、编码区、内含子、UTR、剪接位点、启动子邻域、TE/repeat 和跨属保守序列模式的结构注释驱动模型。
 
-最终模型名称：DoukeGenome-330M。
+最终模型名称：LegumeGenomeFM-330M。
 
 ## 2. 设计依据
 
@@ -517,14 +517,14 @@ CDS 和 splice 不能全部来自 Glycine，必须按属做最低覆盖约束。
 
 ## 8. 模型架构
 
-模型名称：DoukeGenome-330M。
+模型名称：LegumeGenomeFM-330M。
 
 主干：RC-equivariant bidirectional MambaDNA。
 
 核心配置：
 
 ```yaml
-model_name: DoukeGenome-330M
+model_name: LegumeGenomeFM-330M
 architecture: bidirectional_rc_equivariant_mamba_dna
 vocab_size: 9
 d_model: 1024
@@ -1002,7 +1002,7 @@ splice-disrupting variant AUPRC
 相比短上下文模型: 能覆盖 variant 与 splice/promoter/TE/gene body 的长程关系。
 ```
 
-需要谨慎：真实农艺性状预测仍需要表型、GWAS、QTL 或表达数据，DoukeGenome 主要提供候选区域和候选变异的功能先验。
+需要谨慎：真实农艺性状预测仍需要表型、GWAS、QTL 或表达数据，LegumeGenomeFM 主要提供候选区域和候选变异的功能先验。
 
 ## 12. 基线模型和预期优势
 
@@ -1018,7 +1018,7 @@ small Transformer supervised baseline
 gene annotation tool baseline when applicable
 ```
 
-DoukeGenome 预计最有优势的地方：
+LegumeGenomeFM 预计最有优势的地方：
 
 ```text
 豆科 gene structure prediction
@@ -1182,7 +1182,7 @@ CPU: 32 cores
 6. 生成区域权重表：CDS、splice、promoter、UTR、intron、repeat、intergenic。
 7. 生成过滤后的 8 kb/32 kb/64 kb/128 kb 多尺度 shards，或 compact sequence store + window index。
 8. 实现 region-weighted + genus-balanced streaming dataloader。
-9. 准备 DoukeGenome-330M 训练配置。
+9. 准备 LegumeGenomeFM-330M 训练配置。
 10. 启动 Stage 1 结构注释驱动预训练。
 11. 完成 Stage 2 下游任务微调和基线系统评估。
 ```

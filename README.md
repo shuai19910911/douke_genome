@@ -1,6 +1,6 @@
-# douke_genome
+# LegumeGenomeFM
 
-豆科基因组预训练大模型项目。
+豆科基因组基础模型项目。
 
 ## 当前目标
 
