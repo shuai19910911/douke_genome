@@ -1,28 +1,43 @@
-# DoukeGenome 豆科基因组预训练大模型正式训练方案
+# DoukeGenome 豆科结构注释驱动基因组预训练大模型正式训练方案
 
-更新时间：2026-06-07 23:42:26 CST
+更新时间：2026-06-08 09:24:33 CST
 
 ## 1. 项目目标
 
-训练一个面向豆科（Fabaceae/Leguminosae）的 DNA foundation model。当前不使用 SNP/INDEL 变异矩阵，只使用已下载的豆科基因组序列及结构注释、功能注释、TE/repeat 注释等信息。
+训练一个面向豆科（Fabaceae/Leguminosae）的 DNA foundation model。当前阶段放弃没有结构注释的基因组，只使用同时满足以下条件的数据：
 
-目标不是训练一个只适合大豆的模型，而是先训练豆科通用模型，再面向大豆和其他豆科作物任务继续适配。
+```text
+has_genome = yes
+genome_qc_status = ok
+has_structural_annotation = yes
+```
+
+目标模型不是一个只会拟合大豆序列分布的 genome-only 模型，而是一个显式学习豆科基因结构、编码区、内含子、UTR、剪接位点、启动子邻域、TE/repeat 和跨属保守序列模式的结构注释驱动模型。
 
 最终模型名称：DoukeGenome-330M。
 
 ## 2. 设计依据
 
-本方案参考当前 DNA foundation model 的前沿方向：
+当前 DNA foundation model 的前沿方向已经很清楚：
 
-- Nucleotide Transformer：大规模 DNA 预训练可迁移到多种基因组预测任务，模型规模覆盖 50M 到 2.5B 参数，并使用 3,202 个人类基因组和 850 个跨物种基因组。
-- DNABERT-2：多物种 DNA 预训练和高效 tokenization 能降低计算成本，但 BERT 类模型上下文长度仍不适合本项目的长 intron、TE 和基因邻域建模。
-- HyenaDNA：证明单碱基分辨率下可以把 DNA 上下文扩展到 1M token 级别，解决 Transformer 在长序列上的二次复杂度限制。
-- Caduceus：提出双向、反向互补等变的长程 DNA 模型。DNA 不是单向文本，上下游序列和 reverse-complement 对称性必须进入架构设计。
-- PlantCaduceus：证明跨物种植物 DNA 模型可在有限标注条件下提升植物功能区域预测，最贴近本项目的豆科跨属场景。
-- Evo 2：代表最新一代单碱基、长上下文、跨生命域 genome model，说明前沿方向是长上下文、多尺度、可预测也可生成的 genome foundation model。
-- 2025 年 DNA foundation model benchmark 结果提示：通用 DNA 模型并非所有任务都自动最优，尤其 gene expression、QTL/variant effect 等任务仍需要领域数据、任务头和专门微调。因此 DoukeGenome 必须设计豆科专属数据采样和下游验证。
+- Nucleotide Transformer 证明大规模 DNA 预训练可以迁移到多种基因组任务。
+- DNABERT-2 是有效的多物种短/中上下文基线，但上下文长度不足以覆盖豆科长 intron、TE 邻域和基因上下游调控区域。
+- HyenaDNA 证明单碱基分辨率可以扩展到超长 DNA 上下文。
+- Caduceus 证明 DNA 模型应考虑双向上下文和 reverse-complement 等变性。
+- PlantCaduceus 证明植物跨物种 DNA 模型在单碱基功能区域预测上有价值。
+- Evo 2 代表最新长上下文 genome foundation model 方向。
+- DNA foundation model benchmark 显示通用 DNA 模型并不会在所有任务上自动最优，尤其表达、QTL、变异效应等任务需要领域数据和专门任务头。
 
-结论：DoukeGenome 不采用短上下文 BERT 作为主干，正式主干采用“单碱基 token + 长上下文 + bidirectional SSM/MambaDNA + reverse-complement consistency”的路线。
+因此本项目采用：
+
+```text
+单碱基 token
+长上下文
+bidirectional Mamba/SSM backbone
+reverse-complement consistency
+结构注释多任务监督
+豆科属级和区域级加权采样
+```
 
 参考来源：
 
@@ -30,78 +45,69 @@
 - https://arxiv.org/abs/2306.15006
 - https://papers.neurips.cc/paper_files/paper/2023/hash/86ab6927ee4ae9bde4247793c46797c7-Abstract-Conference.html
 - https://arxiv.org/abs/2403.03234
-- https://pmc.ncbi.nlm.nih.gov/articles/PMC12184517/
+- https://pmc.ncbi.nlm.nih.gov/articles/PMC11185591/
 - https://www.nature.com/articles/s41586-026-10176-5
 - https://www.nature.com/articles/s41467-025-65823-8
 
-## 3. 当前数据
+## 3. 正式训练数据
 
-当前全局去冗余结果：
+原始可用 genome 是 493 个，覆盖 69 个属。但正式训练计划放弃没有结构注释的基因组，保留 251 个结构注释可用基因组。
 
-```text
-去冗余 assembly group: 526
-可训练 genome: 493
-覆盖属数: 69
-genome QC: 493/493 ok
-可训练 genome 总长度: 554.1 Gb
-平均 genome 长度: 1.12 Gb
-```
-
-注释覆盖：
+正式训练集统计：
 
 ```text
-结构注释: 251 个基因组
-功能注释: 128 个基因组
-TE/repeat 注释: 47 个基因组
-三类注释齐全: 20 个基因组
-三类注释均无: 242 个基因组
+结构注释可用 genome: 251
+覆盖属数: 29
+总基因组长度: 300.5 Gb
+平均 genome 长度: 1.20 Gb
+其中有功能注释: 128
+其中有 TE/repeat 注释: 47
+结构+功能+TE/repeat 均有: 20
 ```
 
 主要属分布：
 
 ```text
-Glycine 149
-Medicago 72
-Arachis 38
-Vigna 38
-Phaseolus 23
-Trifolium 21
-Cicer 15
-Lathyrus 9
-Vicia 9
-Ormosia 8
-Cajanus 7
-Lupinus 7
+Glycine 116
+Medicago 23
+Arachis 21
+Vigna 21
+Phaseolus 13
+Cicer 9
+Lupinus 6
+Trifolium 6
+Cajanus 5
+Vicia 5
+Lathyrus 3
 ```
 
 主要属碱基规模：
 
 ```text
-Glycine: 150.8 Gb
-Medicago: 51.5 Gb
-Arachis: 77.3 Gb
-Vigna: 19.7 Gb
-Phaseolus: 12.3 Gb
-Trifolium: 13.6 Gb
-Cicer: 7.7 Gb
-Lathyrus: 40.7 Gb
-Vicia: 67.3 Gb
+Glycine: 117.9 Gb
+Arachis: 47.1 Gb
+Medicago: 12.6 Gb
+Vigna: 10.2 Gb
+Phaseolus: 7.0 Gb
+Cicer: 5.1 Gb
+Vicia: 49.0 Gb
+Lathyrus: 13.6 Gb
 ```
 
-## 4. 数据预处理总流程
-
-正式训练前先把数据整理为三层产物：
+放弃无结构注释 genome 的原因：
 
 ```text
-raw genome/annotation files
-  -> clean genome and annotation index
-  -> window-level training shards
-  -> streaming dataloader batches
+1. 本项目目标不是单纯 genome language modeling，而是结构注释驱动的豆科模型。
+2. 没有 GFF3/GTF/BED 的 genome 无法可靠提供 CDS、exon、intron、UTR、splice site 标签。
+3. 保留无注释 genome 会稀释区域监督信号，使模型更偏向 k-mer 统计而不是可解释功能区域。
+4. 251 个结构注释 genome 仍有约 300.5 Gb 序列，足够进行正式预训练。
 ```
+
+## 4. 数据预处理
 
 ### 4.1 输入清单
 
-输入索引来自本地：
+输入来自本地索引：
 
 ```text
 data/metadata/legume_family_nonredundant_assemblies.tsv
@@ -109,14 +115,15 @@ data/metadata/legume_family_nonredundant_files.tsv
 data/metadata/legume_family_nonredundant_duplicate_groups.tsv
 ```
 
-只使用：
+正式筛选条件：
 
 ```text
 has_genome = yes
 genome_qc_status = ok
+has_structural_annotation = yes
 ```
 
-每条 genome 记录需要保留：
+每个 assembly 保留字段：
 
 ```text
 assembly_id
@@ -125,124 +132,139 @@ genus
 source
 accession
 local_fasta_path
+gff3_or_gtf_path
+cds_path
+protein_path
+functional_annotation_path
+repeat_annotation_path
+duplicate_group_id
 total_bp
 n50
 n_percent
-annotation_paths
-duplicate_group_id
 ```
 
 ### 4.2 FASTA 标准化
 
-对 493 个 genome 执行：
+处理步骤：
 
 ```text
 1. 解压或流式读取 FASTA。
 2. header 标准化为 assembly_id|seq_id。
 3. 碱基统一大写。
 4. 非 A/C/G/T/N 字符转为 N。
-5. 长度 < 1 kb 的 contig 默认不进入预训练。
-6. 连续 N 超过 5 kb 的区域作为窗口切分边界。
-7. 输出 clean FASTA 或 indexed FASTA。
+5. 长度 < 1 kb 的 contig 不进入训练。
+6. 连续 N >= 1 kb 的区域作为候选断点。
+7. 连续 N >= 5 kb 的区域强制作为窗口切分边界。
 8. 生成 .fai、sequence length table、checksum table。
 ```
 
-推荐产物：
+### 4.3 N 比例阈值决策
+
+原计划“窗口中 N 比例 > 20% 丢弃”过高。20% N 意味着 32 kb 窗口里最多 6.5 kb 是未知碱基，64 kb 窗口里最多 13 kb 是未知碱基，这会显著污染 masked nucleotide modeling 和结构区域监督。
+
+正式阈值改为：
 
 ```text
-data/processed/genomes/clean_fasta/
-data/processed/genomes/fai/
-data/processed/index/genome_sequences.tsv
+train:
+  N <= 5%: 正常使用
+  5% < N <= 10%: 只允许小属或稀缺区域救援采样，sample_weight = 0.5
+  N > 10%: 丢弃
+
+validation/test:
+  N <= 5%: 使用
+  N > 5%: 丢弃
 ```
 
-预计资源和时间：
+其他规则：
 
 ```text
-输入规模: 约 554 Gb DNA bases，压缩文件约 100-250 GB 量级，视来源而定
-CPU: 16-32 cores
-内存: 64-128 GB
-磁盘临时空间: 1.0-1.5 TB
-预计时间: 6-18 小时
-瓶颈: 解压和并行 IO
+窗口中任意连续 N >= 1 kb: 该窗口默认丢弃，除非是稀缺小属且不用于 validation/test。
+窗口中有效 A/C/G/T < 90%: train 默认低权重或丢弃，validation/test 丢弃。
+所有 splice site、CDS 边界、start/stop codon 监督窗口要求 N <= 2%。
 ```
 
-### 4.3 注释标准化
+结论：20% 对正式训练太宽，正式默认使用 5%，最多救援到 10%。
 
-对有注释的 genome 执行：
+### 4.4 结构注释标准化
+
+GFF3/GTF/BED 统一处理：
 
 ```text
-1. GFF3/GTF/BED 坐标统一为 0-based half-open 内部格式。
-2. seqid 映射到标准化 FASTA header。
-3. gene/mRNA/exon/CDS/UTR/intron 层级展开。
-4. functional annotation 映射到 gene_id。
-5. gene family 映射到 gene_id 或 protein_id。
-6. TE/repeat 注释转为 per-base 或 interval label。
-7. 坐标越界、孤立 transcript、缺失 parent 的记录单独标记，不直接用于监督。
+1. 坐标统一为 0-based half-open 内部格式。
+2. seqid 映射到标准 FASTA header。
+3. 展开 gene、mRNA、exon、intron、CDS、UTR。
+4. 从 transcript 结构推断 splice donor/acceptor。
+5. 从 CDS 推断 start codon、stop codon 和 reading frame。
+6. functional annotation 映射到 gene_id。
+7. gene family 映射到 gene_id 或 protein_id。
+8. TE/repeat 注释转成 interval label。
+9. 坐标越界、缺 parent、孤立 transcript、CDS 不成 3 倍数的记录标为低置信，不用于主监督。
 ```
 
-输出标签类型：
+输出标签：
 
 ```text
-gene
-mRNA
-exon
-intron
+intergenic
+promoter proximal
+5UTR
 CDS
-UTR
+intron
+3UTR
 splice_donor
 splice_acceptor
 start_codon_window
 stop_codon_window
 repeat_or_TE
-functional_terms
 gene_family
+functional_terms
 ```
 
-预计资源和时间：
+## 5. 数据切分和泄漏控制
+
+必须保证一个数据集中的基因组片段不会同时出现在训练集和其他集合。
+
+正式切分单位：
 
 ```text
-CPU: 16-32 cores
-内存: 64-128 GB
-磁盘临时空间: 300-800 GB
-预计时间: 8-24 小时
-瓶颈: GFF3 层级解析、seqid 对齐、区间排序
+primary split unit: duplicate_group_id
+secondary split unit: assembly_id
+fallback split unit: chromosome/scaffold only when assembly-level split is impossible
 ```
 
-### 4.4 数据切分
-
-切分单位必须是 assembly group，不是窗口。避免同一 assembly 的窗口同时进入 train 和 test。
-
-推荐：
+默认规则：
 
 ```text
-train: 80% assembly groups
-validation: 10% assembly groups
-test: 10% assembly groups
+1. 同一个 duplicate_group_id 只能进入 train、validation、test 之一。
+2. 同一个 assembly_id 只能进入 train、validation、test 之一。
+3. 同一个 chromosome/scaffold 默认不跨 split。
+4. train/validation/test 的 genomic interval 不允许重叠。
+5. 如果因小属样本太少必须按 chromosome 切分，同一 chromosome 仍不跨 split。
+6. 如果极端情况下必须在同一 chromosome 上切分，切分边界两侧各排除 2 x max_context_length，即 262,144 bp blackout region。
+7. 任意窗口如果与其他 split 的窗口重叠超过 1 bp，直接丢弃。
+8. 任意 gene_id、transcript_id、CDS interval、splice site 不跨 split。
 ```
 
-规则：
+推荐比例：
 
 ```text
-1. duplicate group 不跨 split。
-2. genus-stratified split。
-3. Glycine 内部单独留出一批 accession 做 soybean holdout。
-4. 小属优先保证至少进入 validation 或 test。
-5. annotation-rich genome 在 train/validation/test 中均保留。
+train: 80%
+validation: 10%
+test: 10%
 ```
 
-预计时间：
+额外 holdout：
 
 ```text
-CPU: 4-8 cores
-内存: < 32 GB
-预计时间: 0.5-2 小时
+Glycine holdout: 留出部分 Glycine accession，仅用于大豆泛化评估。
+cross-genus holdout: 至少留出 Phaseolus/Vigna/Arachis/Medicago 中的若干 assembly 做跨属迁移评估。
+small-genus holdout: 小属不参与过度随机拆分，优先完整 assembly 留出。
 ```
 
-## 5. 训练样本构建
+## 6. 训练样本和模型输入
 
-### 5.1 窗口策略
+### 6.1 窗口长度
 
-正式训练采用多尺度窗口：
+正式多尺度窗口：
 
 ```text
 8,192 bp
@@ -251,40 +273,41 @@ CPU: 4-8 cores
 131,072 bp
 ```
 
-窗口生成：
+训练阶段优先级：
 
 ```text
-1. 对每条 chromosome/scaffold 按窗口长度切片。
-2. train split 使用随机 offset 和随机 strand。
-3. validation/test 使用固定 offset，保证可复现。
-4. 窗口中 N 比例 > 20% 默认丢弃。
-5. 窗口中有效 A/C/G/T 少于 70% 默认丢弃。
-6. 对 annotation-aware 阶段，优先采样包含 gene、splice site、repeat、functional term 的窗口。
+32 kb: 主力窗口，覆盖完整基因、启动子邻域和局部 TE 上下文。
+64 kb: 长 intron、局部基因簇、TE 邻域和调控区域。
+8 kb: 高密度监督，适合 splice/CDS/promoter 任务。
+128 kb: 长程继续训练，不作为早期唯一主力。
 ```
 
-### 5.2 样本格式
+### 6.2 样本字段
 
-每个训练样本包含：
+每个样本包含：
 
 ```yaml
 sample_id: string
 assembly_id: string
+duplicate_group_id: string
 species: string
 genus: string
 seq_id: string
 start: int
 end: int
 strand: + or -
+split: train | validation | test
 input_ids: uint8 array
-attention_mask: bool array
 mlm_mask: bool array
-labels_mlm: int array
-labels_region: optional uint8 array
-labels_splice: optional uint8 array
-labels_repeat: optional uint8 array
+mlm_labels: int array
+region_labels: uint8 array
+splice_labels: uint8 array
+frame_labels: uint8 array
+repeat_labels: optional uint8 array
 gene_ids: optional list
 functional_terms: optional sparse list
 gene_family_ids: optional list
+sample_weight: float
 ```
 
 单碱基 token：
@@ -301,124 +324,76 @@ BOS=7
 EOS=8
 ```
 
-输入模型前的张量形态：
+模型输入张量：
 
 ```text
 input_ids: [batch, seq_len]
 mlm_labels: [batch, seq_len]
 region_labels: [batch, seq_len, num_region_labels]
+splice_labels: [batch, seq_len, 2]
+frame_labels: [batch, seq_len, 3]
+repeat_labels: [batch, seq_len, repeat_labels]
 sample_weight: [batch]
 genus_id: [batch]
 ```
 
-### 5.3 Mask 策略
+## 7. 区域加权采样
 
-DNA-only 阶段：
+由于本项目目标是结构注释驱动模型，不能让 intergenic 或 repeat-rich 背景区域淹没 CDS、剪接位点和 UTR。
+
+训练 batch 的区域组成建议：
 
 ```text
-mask ratio: 15%
-span length mixture: 3, 6, 12, 24, 48, 96 bp
-80% -> MASK token
-10% -> random A/C/G/T/N
-10% -> unchanged
+CDS / coding exon centered windows: 25%
+splice donor/acceptor centered windows: 15%
+promoter/TSS upstream windows: 15%
+UTR and transcript boundary windows: 10%
+intron windows: 10%
+TE/repeat windows: 10%
+intergenic background windows: 10%
+random genome coverage windows: 5%
 ```
 
-补充增强：
+如果某个基因组缺少 TE/repeat 注释，则 TE/repeat 配额只从有 repeat 注释的 47 个基因组中采样；缺失 repeat 注释的基因组不把 intergenic 区域伪标为 non-repeat。
+
+loss 权重：
 
 ```text
-random reverse-complement: 50%
-random shift for train windows
-random N dropout: low probability, only for robustness
+masked nucleotide loss: 1.0
+region label loss: 1.0
+CDS/frame loss: 1.5
+splice donor/acceptor loss: 2.0
+start/stop codon loss: 1.5
+promoter/TSS loss: 1.2
+TE/repeat loss: 1.0
+gene family contrastive loss: 0.5
+functional multi-label loss: 0.5
+RC consistency loss: 0.2
+next-window contrastive loss: 0.2
 ```
 
-### 5.4 Shard 格式
-
-推荐使用 WebDataset tar shards 或 mmap 二进制 shards：
+属级采样仍需平衡：
 
 ```text
-shard size: 1-4 GB
-records per shard: 按 seq_len 决定
-compression: zstd 可选；若 IO 充足，训练 shard 不压缩更快
-index: shard_id, sample_count, token_count, genus histogram
-```
-
-预计窗口和 token 规模：
-
-```text
-单轮全基因组有效碱基: 约 554B bases
-按 32 kb 无重叠窗口: 约 16.9M windows
-按 64 kb 无重叠窗口: 约 8.45M windows
-考虑过滤和多尺度采样后，训练不是穷举固定窗口，而是流式随机窗口采样。
-正式 token budget: 180B DNA-only + 20B-40B annotation-aware
-```
-
-预处理资源：
-
-```text
-CPU: 32 cores 推荐
-内存: 128 GB 推荐
-磁盘: 2-4 TB 推荐
-预计时间: 1-3 天
-```
-
-## 6. 数据采样策略
-
-正式策略：保留全部 493 个基因组，但训练时做属级平衡采样。
-
-不建议直接按原始数量训练，因为 Glycine、Medicago 等会主导模型；也不建议每属硬性等量，因为小属会被重复过度采样。
-
-训练 batch 来源：
-
-```text
-60% genus-balanced genome sampling
-30% natural genome-count sampling
-10% annotation-rich genome sampling
-```
-
-属级权重：
-
-```text
-weight(genus) = 1 / sqrt(number_of_genomes_in_genus)
-```
-
-窗口级权重：
-
-```text
-base_weight = genus_weight
-+ gene_window_bonus
-+ splice_site_bonus
-+ repeat_window_bonus
-+ annotation_rich_bonus
+weight(genus) = 1 / sqrt(number_of_structurally_annotated_genomes_in_genus)
 ```
 
 约束：
 
 ```text
-任何单属在一个 epoch 的 token 占比不超过 20%-25%
-Glycine 在 Stage 1 不超过 25%
-annotation-rich 采样只用于增强，不替代 genome-only 随机覆盖
+Glycine token 占比不超过 30%。
+任一单属 token 占比不超过 30%。
+小属可上采样，但同一窗口重复率不得超过 3 次/epoch。
+CDS 和 splice 不能全部来自 Glycine，必须按属做最低覆盖约束。
 ```
 
-## 7. 模型架构
+## 8. 模型架构
 
 模型名称：DoukeGenome-330M。
 
 主干：RC-equivariant bidirectional MambaDNA。
 
-### 7.1 为什么选择这个架构
-
-豆科真核基因组包含长 intron、大量 repeat/TE、基因邻域效应和远距离调控。纯 Transformer 在 64 kb-128 kb 长度下计算成本过高；短上下文 BERT 会错过大量长程信息。
-
-因此采用：
-
-```text
-Mamba/SSM: 长序列线性或近线性复杂度
-Bidirectional: 同时建模上下游序列
-RC-equivariant: 显式约束 DNA reverse-complement 对称性
-Single nucleotide token: 保留单碱基分辨率
-```
-
-### 7.2 主配置
+核心配置：
 
 ```yaml
 model_name: DoukeGenome-330M
@@ -440,14 +415,14 @@ max_context_length: 131072
 target_parameters: approximately 300M-360M
 ```
 
-### 7.3 模型输入到输出
+模型流：
 
 ```text
 input_ids [B, L]
   -> nucleotide embedding [B, L, D]
   -> forward MambaDNA stream
   -> reverse-complement MambaDNA stream
-  -> bidirectional fusion
+  -> RC-equivariant bidirectional fusion
   -> contextual representation [B, L, D]
   -> task heads
 ```
@@ -458,38 +433,28 @@ input_ids [B, L]
 mlm_head: [B, L, 9]
 region_head: [B, L, region_labels]
 splice_head: [B, L, donor/acceptor]
+frame_head: [B, L, frame0/frame1/frame2]
 repeat_head: [B, L, repeat_labels]
-gene_pooling_head: [B, D] or [num_genes, D]
+gene_pooling_head: [num_genes, D]
 function_head: multi-label
 gene_family_head: contrastive embedding
+variant_effect_head: pairwise ref/alt scoring
 ```
 
-### 7.4 对照模型
+## 9. 训练阶段
 
-正式项目至少保留以下对照，不作为主模型：
-
-```text
-DNABERT-2 embedding baseline
-Nucleotide Transformer embedding baseline
-PlantCaduceus/Caduceus-style checkpoint baseline if available
-CNN or small Transformer supervised baseline for annotation tasks
-```
-
-## 8. 训练阶段
-
-### Stage 0: 数据工程和样本构建
-
-目标：生成可复现训练 shard。
+### Stage 0: 数据工程
 
 输出：
 
 ```text
-clean genome index
+structural-annotation-only genome manifest
+clean FASTA index
 annotation interval index
-train/val/test split
-genome-only shards
+leakage-safe split table
+region-weight table
+genome shards
 annotation-aware shards
-sampling weight tables
 ```
 
 资源和时间：
@@ -501,14 +466,18 @@ CPU: 32 cores
 时间: 2-4 天
 ```
 
-### Stage 1: genome-only 预训练
+### Stage 1: 结构注释驱动预训练
 
-输入：493 个 QC=ok 的 genome FASTA 生成的随机窗口。
+输入：251 个结构注释 genome 的加权窗口。
 
-目标函数：
+目标：
 
 ```text
 span masked nucleotide modeling
+region label prediction
+CDS/frame prediction
+splice donor/acceptor prediction
+promoter/TSS neighborhood prediction
 reverse-complement consistency
 next-window contrastive learning
 ```
@@ -516,263 +485,363 @@ next-window contrastive learning
 token budget：
 
 ```text
-8 kb: 30B tokens
-32 kb: 60B tokens
-64 kb: 60B tokens
-128 kb: 30B tokens
-total: 180B tokens
+8 kb: 20B tokens
+32 kb: 50B tokens
+64 kb: 40B tokens
+128 kb: 20B tokens
+Stage 1 total: 130B tokens
 ```
 
-训练参数：
+### Stage 2: 功能和家族继续预训练
 
-```yaml
-optimizer: AdamW
-peak_lr: 2.0e-4
-min_lr: 2.0e-5
-weight_decay: 0.1
-betas: [0.9, 0.95]
-warmup_ratio: 0.02
-schedule: cosine
-gradient_clip: 1.0
-precision: bf16
-activation_checkpointing: true
-```
+输入：结构注释 genome 中有功能注释、gene family、TE/repeat 注释的子集。
 
-批量建议：
-
-```yaml
-8192 bp:
-  micro_batch_per_gpu: 16
-  gradient_accumulation_steps: 16
-32768 bp:
-  micro_batch_per_gpu: 4
-  gradient_accumulation_steps: 32
-65536 bp:
-  micro_batch_per_gpu: 2
-  gradient_accumulation_steps: 48
-131072 bp:
-  micro_batch_per_gpu: 1
-  gradient_accumulation_steps: 64
-```
-
-### Stage 2: annotation-aware 继续预训练
-
-输入：有注释的 genome windows。
-
-任务：
+目标：
 
 ```text
-gene/intergenic classification
-exon/intron/CDS/UTR/repeat multi-label prediction
-splice donor/acceptor prediction
-start/stop codon neighborhood prediction
-gene family contrastive learning
 functional annotation multi-label learning
-TE/repeat region prediction
+gene family contrastive learning
+TE/repeat prediction
+ortholog-like representation alignment
 ```
 
 token budget：
 
 ```text
-20B-40B tokens
+20B-30B tokens
 ```
 
-策略：
+### Stage 3: 下游任务微调和系统评估
+
+见第 10 节。
+
+## 10. 下游任务设计
+
+### 10.1 基因结构预测
+
+任务：
 
 ```text
-1. 冻结底部 12 层，训练 annotation heads 1-2 epoch。
-2. 解冻全模型，以较低学习率继续训练。
-3. 每个 batch 中 genome-only loss 和 annotation loss 混合，避免注释偏向少数属。
+per-base gene/intergenic/exon/intron/CDS/UTR classification
+gene boundary detection
+transcript boundary detection
 ```
 
-### Stage 3: 豆科作物和大豆适配
-
-重点任务：
+评估：
 
 ```text
-soybean promoter model
-nodulation-related gene prioritization
-domestication/selection region embedding
-TE insertion effect representation
-variant effect scoring with ref/alt windows
-GWAS hit prioritization
+per-base F1
+gene-level F1
+boundary F1 within 10/50/100 bp
+cross-genus holdout performance
 ```
 
-## 9. GPU 资源和训练时间估算
+预计优势：
 
-下面是工程估算，不是承诺值。真实速度取决于实现、IO、Mamba kernel、checkpointing、shard 格式和集群通信。
-
-### 9.1 推荐启动配置
-
-```yaml
-preferred_start: 2 x A100 40G
-scale_out_if_needed: 4-8 x A100 40G or equivalent
-precision: bf16
-parallelism: DDP or DeepSpeed ZeRO-2
-activation_checkpointing: true
-gradient_accumulation: true
+```text
+相比 CNN/small Transformer: 长上下文和预训练带来明显提升。
+相比 DNABERT-2: 单碱基长上下文更适合 intron/exon 边界和长基因。
+相比通用 Nucleotide Transformer: 豆科结构注释预训练应在豆科 holdout 上更好。
 ```
 
-### 9.2 吞吐假设
+最可能优于基线的指标：
 
-对 300M-360M 级长上下文 SSM DNA 模型，保守估计：
+```text
+exon/intron/CDS per-base F1
+gene boundary F1
+cross-genus gene structure F1
+```
+
+### 10.2 剪接位点预测
+
+任务：
+
+```text
+splice donor prediction
+splice acceptor prediction
+canonical and non-canonical splice site scoring
+```
+
+评估：
+
+```text
+AUROC
+AUPRC
+top-k splice site retrieval
+false positive rate in intronic background
+```
+
+预计优势：
+
+```text
+相比 k-mer/SVM/CNN: 可利用上下游长上下文和 transcript 结构。
+相比 DNABERT-2: 不受短上下文和 k-mer 边界限制。
+相比通用模型: 豆科内含子、外显子长度分布和剪接上下文更贴近训练域。
+```
+
+最可能优于基线的指标：
+
+```text
+splice donor AUPRC
+splice acceptor AUPRC
+低样本属 splice site transfer
+```
+
+### 10.3 CDS、reading frame 和 start/stop codon 预测
+
+任务：
+
+```text
+CDS per-base classification
+reading frame classification
+start codon neighborhood scoring
+stop codon neighborhood scoring
+pseudo-CDS filtering
+```
+
+评估：
+
+```text
+CDS F1
+frame accuracy
+start/stop codon AUPRC
+protein-coding transcript consistency
+```
+
+预计优势：
+
+```text
+相比 genome-only 模型: 明确见过 CDS/frame 监督。
+相比通用 DNA LM: 豆科编码区 codon usage 和基因结构更匹配。
+```
+
+最可能优于基线的指标：
+
+```text
+frame accuracy
+CDS boundary F1
+start/stop codon AUPRC
+```
+
+### 10.4 启动子和 TSS 邻域预测
+
+任务：
+
+```text
+TSS upstream 2 kb/5 kb/10 kb promoter classification
+core promoter candidate ranking
+gene-proximal regulatory window embedding
+```
+
+评估：
+
+```text
+AUROC
+AUPRC
+promoter vs intergenic hard-negative discrimination
+cross-genus promoter transfer
+```
+
+预计优势：
+
+```text
+相比短上下文模型: 32-64 kb 表征能同时覆盖 promoter、UTR、gene body 和邻近 TE。
+相比通用模型: 豆科启动子 motif、GC 分布、TE 邻域更贴近训练数据。
+```
+
+最可能优于基线的指标：
+
+```text
+promoter hard-negative AUPRC
+cross-genus promoter AUROC
+```
+
+### 10.5 TE/repeat 区域识别和 TE 邻域效应表征
+
+任务：
+
+```text
+TE/repeat interval prediction
+TE insertion neighborhood representation
+TE-proximal gene window scoring
+```
+
+评估：
+
+```text
+TE/repeat per-base F1
+TE boundary F1
+TE-proximal promoter classification
+```
+
+预计优势：
+
+```text
+相比 DNABERT-2 和短 CNN: 长窗口更适合重复序列和 TE 边界。
+相比通用模型: 豆科 TE 组成和扩增历史更贴近本项目训练集。
+```
+
+注意：只有 47 个 genome 有 repeat 注释，因此该任务预计能优于短上下文基线，但泛化范围需要谨慎验证。
+
+### 10.6 基因家族和功能注释预测
+
+任务：
+
+```text
+gene family retrieval
+ortholog-like gene representation retrieval
+functional annotation multi-label prediction
+nodulation-related gene candidate scoring
+```
+
+评估：
+
+```text
+top-k retrieval accuracy
+mean average precision
+macro/micro F1
+cross-species retrieval accuracy
+```
+
+预计优势：
+
+```text
+相比只用 protein 序列或只用 DNA k-mer: 能结合基因上下游和结构上下文。
+相比通用 DNA LM: 豆科共生固氮、根瘤、异黄酮、种子相关基因家族更贴近训练域。
+```
+
+最可能优于基线的指标：
+
+```text
+gene family top-10 retrieval
+nodulation-related gene candidate enrichment
+cross-genus ortholog-like retrieval
+```
+
+### 10.7 大豆变异效应和 GWAS hit prioritization
+
+任务：
+
+```text
+ref/alt window embedding difference
+coding variant effect scoring
+splice-proximal variant scoring
+promoter variant scoring
+GWAS/QTL candidate interval prioritization
+```
+
+评估：
+
+```text
+known causal/putative causal variant ranking
+GWAS peak gene prioritization
+coding vs noncoding variant separation
+splice-disrupting variant AUPRC
+```
+
+预计优势：
+
+```text
+相比通用 DNA LM: 对 Glycine 和近缘豆科结构区域更贴近。
+相比只用 SNP matrix 的统计模型: 能解释变异所在序列上下文和基因结构。
+相比短上下文模型: 能覆盖 variant 与 splice/promoter/TE/gene body 的长程关系。
+```
+
+需要谨慎：真实农艺性状预测仍需要表型、GWAS、QTL 或表达数据，DoukeGenome 主要提供候选区域和候选变异的功能先验。
+
+## 11. 基线模型和预期优势
+
+基线：
+
+```text
+DNABERT-2
+Nucleotide Transformer
+HyenaDNA
+Caduceus / PlantCaduceus if checkpoint is available
+CNN supervised baseline
+small Transformer supervised baseline
+gene annotation tool baseline when applicable
+```
+
+DoukeGenome 预计最有优势的地方：
+
+```text
+豆科 gene structure prediction
+豆科 splice donor/acceptor prediction
+CDS/frame/start/stop codon prediction
+cross-genus low-label transfer
+promoter hard-negative classification
+TE/repeat boundary prediction within annotated repeat subset
+Glycine and related legumes variant functional prioritization
+```
+
+不保证优于基线的地方：
+
+```text
+非豆科物种零样本泛化
+没有表型数据的复杂农艺性状直接预测
+表达量精确预测
+长距离染色质互作预测
+repeat 注释极少属的 TE 亚家族分类
+```
+
+预期结果表达方式：
+
+```text
+主张“预计在豆科结构注释相关任务上优于通用 DNA LM 和短上下文基线”。
+不提前承诺所有任务全面领先。
+所有优势必须通过 holdout assembly、holdout genus 和外部基线比较验证。
+```
+
+## 12. 资源和时间估算
+
+由于正式训练集从 493 个 genome 调整为 251 个结构注释 genome，总 token budget 从原方案 180B+20B/40B 调整为 130B+20B/30B。
+
+数据工程：
+
+```text
+CPU: 32 cores
+内存: 128 GB
+磁盘: 2-4 TB
+时间: 2-4 天
+```
+
+训练时间估算：
 
 ```text
 2 x A100 40G:
-  8 kb: 120k-220k tokens/s
-  32 kb: 80k-150k tokens/s
-  64 kb: 45k-90k tokens/s
-  128 kb: 20k-45k tokens/s
+  Stage 1 130B tokens: 18-36 天
+  Stage 2 20B-30B tokens: 5-11 天
+  Stage 3 下游微调和评估: 5-14 天
+  总计: 30-65 天
 
 4 x A100 40G:
-  约为 2 卡的 1.7-1.9 倍
+  总计: 19-40 天
 
 8 x A100 40G:
-  约为 2 卡的 3.2-3.6 倍
+  总计: 12-28 天
 ```
 
-### 9.3 Stage 1 时间
-
-按中位吞吐估算：
+扩卡规则：
 
 ```text
-2 x A100 40G:
-  8 kb 30B: 2-4 天
-  32 kb 60B: 5-9 天
-  64 kb 60B: 8-15 天
-  128 kb 30B: 8-18 天
-  Stage 1 合计: 23-46 天
-
-4 x A100 40G:
-  Stage 1 合计: 13-27 天
-
-8 x A100 40G:
-  Stage 1 合计: 7-15 天
+如果 32 kb 阶段稳定吞吐 < 80k tokens/s，建议扩到 4 卡。
+如果 64 kb/128 kb 是主要目标，建议 8 卡。
+不通过降低到非正式小模型来解决吞吐问题。
 ```
-
-### 9.4 Stage 2 时间
-
-```text
-2 x A100 40G:
-  20B-40B tokens: 5-14 天
-
-4 x A100 40G:
-  20B-40B tokens: 3-8 天
-
-8 x A100 40G:
-  20B-40B tokens: 2-5 天
-```
-
-### 9.5 Stage 3 时间
-
-```text
-任务数据准备: 2-7 天
-单任务微调: 4-24 小时
-多任务系统评估: 3-10 天
-```
-
-### 9.6 总时间
-
-```text
-2 x A100 40G:
-  数据工程: 2-4 天
-  Stage 1: 23-46 天
-  Stage 2: 5-14 天
-  Stage 3 初版评估: 5-14 天
-  总计: 35-78 天
-
-4 x A100 40G:
-  总计: 23-49 天
-
-8 x A100 40G:
-  总计: 16-34 天
-```
-
-实际建议：先用 2 张 A100 启动 Stage 0 和 Stage 1 的 8 kb/32 kb 阶段。如果 32 kb 阶段稳定吞吐低于 80k tokens/s，建议扩到 4 卡；如果 64 kb/128 kb 阶段成为主要目标，建议 8 卡。
-
-## 10. 存储和文件规模估算
-
-```text
-raw downloaded data: 100-250 GB 量级
-clean FASTA/index: 600 GB-1.2 TB
-annotation interval index: 100-500 GB
-training shards: 1-3 TB
-checkpoints:
-  单个 bf16 330M checkpoint: 1-3 GB
-  optimizer states with AdamW: 4-8 GB per checkpoint or more
-  保留 8-10 个关键 checkpoint: 80-200 GB
-logs/metrics: 10-50 GB
-建议项目可用空间: 4-8 TB
-```
-
-## 11. 验证和监控
-
-预训练监控：
-
-```text
-train loss
-validation loss
-masked token accuracy
-span recovery accuracy
-RC consistency score
-next-window contrastive accuracy
-genus-wise validation loss
-low-representation genus validation loss
-gene-region perplexity
-repeat-region perplexity
-```
-
-下游评估：
-
-```text
-splice donor/acceptor AUROC and AUPRC
-exon/intron/CDS/UTR per-base F1
-promoter classification AUROC
-TE/repeat prediction F1
-gene family retrieval top-k accuracy
-functional annotation multi-label mAP
-cross-genus transfer performance
-Glycine holdout performance
-```
-
-必须有的 sanity checks：
-
-```text
-1. train/validation/test assembly 不重叠。
-2. duplicate group 不跨 split。
-3. reverse-complement 输入输出一致性正常。
-4. N-rich windows 没有主导 batch。
-5. Glycine token 占比不超过设定上限。
-6. annotation-aware 阶段没有被少数有完整注释的属支配。
-```
-
-## 12. 预期结果
-
-正式预期：
-
-- 获得一个 330M 级豆科 DNA foundation model。
-- 在豆科基因结构、剪接位点、启动子、TE/repeat 任务上超过从零训练基线。
-- 在低样本属上优于只用单作物训练的模型。
-- 对大豆下游任务提供稳定的 ref/alt 序列表征。
-
-需要实证验证：
-
-- 是否优于通用植物模型。
-- 是否优于 DNABERT-2/Nucleotide Transformer 直接迁移。
-- 对无注释小属的泛化程度。
-- 对真实育种性状的增益需要结合表型、表达、GWAS 或 QTL 数据评估。
 
 ## 13. 下一步执行顺序
 
 ```text
-1. 生成 clean genome index。
-2. 标准化 FASTA header、碱基和 .fai。
-3. 标准化 GFF3/BED/functional/gene_family/repeat 注释。
-4. 生成 train/validation/test split。
-5. 生成 8 kb 和 32 kb genome-only shards。
-6. 实现 genus-balanced streaming dataloader。
-7. 实现 DoukeGenome-330M 配置和训练脚本。
-8. 启动 Stage 1 8 kb/32 kb 正式训练。
-9. 根据吞吐决定是否扩展到 4-8 卡。
-10. 构建 annotation-aware shards 并进入 Stage 2。
+1. 从非冗余索引生成 structural-annotation-only manifest。
+2. 标准化 251 个 genome 的 FASTA 和结构注释。
+3. 生成 leakage-safe split table，确保 duplicate group、assembly、interval、gene 不跨 split。
+4. 将 N 阈值从 20% 改为正式 5%，最多训练救援到 10%。
+5. 生成区域权重表：CDS、splice、promoter、UTR、intron、repeat、intergenic。
+6. 生成 8 kb/32 kb/64 kb/128 kb 多尺度 shards。
+7. 实现 region-weighted + genus-balanced streaming dataloader。
+8. 准备 DoukeGenome-330M 训练配置。
+9. 启动 Stage 1 结构注释驱动预训练。
+10. 完成 Stage 2 功能/家族/TE 继续预训练。
+11. 系统评估下游任务和基线模型。
 ```

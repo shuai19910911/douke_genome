@@ -22,10 +22,20 @@
 - 新增资源和耗时估算：数据工程约 2-4 天；2 张 A100 40G 下 Stage 1 约 23-46 天、Stage 2 约 5-14 天、初版总周期约 35-78 天；4 卡约 23-49 天；8 卡约 16-34 天。
 - 新增存储估算：建议项目可用空间 4-8 TB。
 
+## 2026-06-08 09:24:33 CST
+
+- 按最新研究策略重写 `PLAN.md`：正式训练放弃没有结构注释的基因组，只使用 251 个结构注释可用基因组，覆盖 29 个属，总长度约 300.5 Gb。
+- 将窗口 N 比例阈值从 `>20% 丢弃` 调整为正式训练默认 `N <= 5%`；训练中 5%-10% 仅允许小属或稀缺区域低权重救援，validation/test 中 `N > 5%` 全部丢弃。
+- 强化数据泄漏控制：duplicate group、assembly、chromosome/scaffold、interval、gene、transcript 和 splice site 均不得跨 train/validation/test。
+- 新增区域级采样比例：优先 CDS、splice site、promoter/TSS、UTR、intron、TE/repeat，再保留少量 intergenic 和 random genome coverage。
+- 详细补充下游任务和基线比较：基因结构、剪接位点、CDS/frame、启动子、TE/repeat、基因家族/功能注释、大豆变异效应和 GWAS hit prioritization。
+- 明确模型预计优势：预期在豆科结构注释相关任务、剪接、CDS/frame、跨属低标注迁移和大豆功能变异优先级排序上优于通用 DNA LM 和短上下文基线；不承诺在非豆科零样本、表达量精确预测和复杂农艺性状直接预测上全面领先。
+
 ## 后续阶段
 
-- 2026-06-07 之后：生成 genome-only 训练样本清单。
-- 2026-06-07 之后：构建属级平衡采样器。
-- 2026-06-07 之后：实现 FASTA 窗口化和 annotation-aware 标签构建。
-- 2026-06-07 之后：准备 DoukeGenome-330M 训练配置。
-- 2026-06-07 之后：启动正式预训练并记录 loss、perplexity、mask accuracy、RC consistency、下游验证指标。
+- 2026-06-08 之后：生成 structural-annotation-only 训练样本清单。
+- 2026-06-08 之后：构建属级平衡 + 区域级加权采样器。
+- 2026-06-08 之后：实现 FASTA 标准化、结构注释标准化、窗口化和多任务标签构建。
+- 2026-06-08 之后：生成 leakage-safe split table，保证 duplicate group、assembly、interval、gene 不跨 split。
+- 2026-06-08 之后：准备 DoukeGenome-330M 训练配置。
+- 2026-06-08 之后：启动正式结构注释驱动预训练并记录 loss、mask accuracy、region F1、splice AUPRC、RC consistency 和下游验证指标。
