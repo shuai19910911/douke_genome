@@ -120,9 +120,17 @@
 - 已提交自动合并依赖作业 `job_id=8462867`：等待 `8462866` 全部成功后合并 `indexes_parallel/parts/` 到 `indexes_parallel/sequence_index.tsv`、`indexes_parallel/filtered_windows.tsv` 和 `indexes_parallel/region_sampling_weights.tsv`。
 - 旧串行作业 `job_id=8462433` 暂未取消，避免直接丢弃已运行结果；正式 compact 索引以后优先使用并行流程产物 `data/compact_douke_v1/indexes_parallel/`。
 
+## 2026-06-08 13:27:08 CST
+
+- 根据每个计算节点约 `30 CPU / 150G memory` 的实际资源，取消低利用率并行作业 `8462866` 和依赖合并作业 `8462867`。
+- 将分片索引 array 优化为每个 task `10 CPU / 50G memory`，并发上限从 `%6` 提高到 `%18`；理论上每个节点可同时运行 3 个 genome 分片，更接近满节点资源占用。
+- 已提交优化后的并行索引作业 `job_id=8462868`，分区 `q03,q04,q05,q07,q08`；已有 task 开始运行。
+- 已提交新的自动合并依赖作业 `job_id=8462872`，等待 `8462868` 全部成功后合并并行索引结果。
+- 若个别超大 genome 分片因 50G 内存不足失败，后续只单独以 `100-150G` 内存重跑失败分片，不影响已完成 part。
+
 ## 后续阶段
 
-- 2026-06-08 之后：等待并行 compact 索引作业 `job_id=8462866` 和合并作业 `job_id=8462867` 完成，核对 `indexes_parallel/sequence_index.tsv`、`indexes_parallel/filtered_windows.tsv` 和 `indexes_parallel/region_sampling_weights.tsv`。
+- 2026-06-08 之后：等待优化后的并行 compact 索引作业 `job_id=8462868` 和合并作业 `job_id=8462872` 完成，核对 `indexes_parallel/sequence_index.tsv`、`indexes_parallel/filtered_windows.tsv` 和 `indexes_parallel/region_sampling_weights.tsv`。
 - 2026-06-08 之后：生成 leakage-safe split table，保证 duplicate group、assembly、interval、gene 不跨 split。
 - 2026-06-08 之后：准备 LegumeGenomeFM-330M 训练配置。
 - 2026-06-08 之后：启动正式结构注释驱动预训练并记录 loss、mask accuracy、region F1、splice AUPRC、RC consistency 和下游验证指标。
