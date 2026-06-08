@@ -31,6 +31,21 @@
 - 详细补充下游任务和基线比较：基因结构、剪接位点、CDS/frame、启动子、TE/repeat、基因家族/功能注释、大豆变异效应和 GWAS hit prioritization。
 - 明确模型预计优势：预期在豆科结构注释相关任务、剪接、CDS/frame、跨属低标注迁移和大豆功能变异优先级排序上优于通用 DNA LM 和短上下文基线；不承诺在非豆科零样本、表达量精确预测和复杂农艺性状直接预测上全面领先。
 
+## 2026-06-08 09:48:21 CST
+
+- 按要求删除 `Stage 2: 功能和家族继续预训练`，不再使用功能注释、gene family 和 TE/repeat 子集做独立继续预训练。
+- 从模型预训练目标、loss 权重、任务头和下游任务中移除 functional annotation multi-label learning 与 gene family contrastive learning。
+- 保留 TE/repeat 作为结构区域监督和下游评估任务的一部分，不再作为独立 Stage 2 继续预训练。
+- 训练阶段调整为：Stage 0 数据工程，Stage 1 结构注释驱动预训练，Stage 2 下游任务微调和系统评估。
+- 总 token budget 调整为 Stage 1 的 130B tokens；预计总周期调整为 2 卡 25-54 天、4 卡 16-33 天、8 卡 10-23 天。
+
+## 2026-06-08 09:50:28 CST
+
+- 在 `PLAN.md` 新增“预训练输入、输出和 loss”专门小节。
+- 明确预训练输入包括 `input_ids`、`attention_mask`、`mlm_mask`、`mlm_labels`、`region_labels`、`splice_labels`、`frame_labels`、`start_stop_labels`、`repeat_labels`、`rc_input_ids`、`next_window_input_ids` 和 `sample_weight`。
+- 明确模型架构流：token embedding -> forward Mamba stream -> reverse-complement Mamba stream -> RC-equivariant bidirectional fusion -> task heads。
+- 明确总 loss 公式：`L_mlm + L_region + L_cds_frame + L_splice + L_start_stop + L_promoter + L_repeat + L_rc + L_next_window`，并写明每项 loss 的适用 mask。
+
 ## 后续阶段
 
 - 2026-06-08 之后：生成 structural-annotation-only 训练样本清单。

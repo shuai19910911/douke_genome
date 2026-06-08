@@ -1,6 +1,6 @@
 # DoukeGenome 豆科结构注释驱动基因组预训练大模型正式训练方案
 
-更新时间：2026-06-08 09:24:33 CST
+更新时间：2026-06-08 09:50:28 CST
 
 ## 1. 项目目标
 
@@ -135,7 +135,6 @@ local_fasta_path
 gff3_or_gtf_path
 cds_path
 protein_path
-functional_annotation_path
 repeat_annotation_path
 duplicate_group_id
 total_bp
@@ -195,10 +194,8 @@ GFF3/GTF/BED 统一处理：
 3. 展开 gene、mRNA、exon、intron、CDS、UTR。
 4. 从 transcript 结构推断 splice donor/acceptor。
 5. 从 CDS 推断 start codon、stop codon 和 reading frame。
-6. functional annotation 映射到 gene_id。
-7. gene family 映射到 gene_id 或 protein_id。
-8. TE/repeat 注释转成 interval label。
-9. 坐标越界、缺 parent、孤立 transcript、CDS 不成 3 倍数的记录标为低置信，不用于主监督。
+6. TE/repeat 注释转成 interval label。
+7. 坐标越界、缺 parent、孤立 transcript、CDS 不成 3 倍数的记录标为低置信，不用于主监督。
 ```
 
 输出标签：
@@ -215,8 +212,6 @@ splice_acceptor
 start_codon_window
 stop_codon_window
 repeat_or_TE
-gene_family
-functional_terms
 ```
 
 ## 5. 数据切分和泄漏控制
@@ -305,8 +300,6 @@ splice_labels: uint8 array
 frame_labels: uint8 array
 repeat_labels: optional uint8 array
 gene_ids: optional list
-functional_terms: optional sparse list
-gene_family_ids: optional list
 sample_weight: float
 ```
 
@@ -366,8 +359,6 @@ splice donor/acceptor loss: 2.0
 start/stop codon loss: 1.5
 promoter/TSS loss: 1.2
 TE/repeat loss: 1.0
-gene family contrastive loss: 0.5
-functional multi-label loss: 0.5
 RC consistency loss: 0.2
 next-window contrastive loss: 0.2
 ```
@@ -436,12 +427,193 @@ splice_head: [B, L, donor/acceptor]
 frame_head: [B, L, frame0/frame1/frame2]
 repeat_head: [B, L, repeat_labels]
 gene_pooling_head: [num_genes, D]
-function_head: multi-label
-gene_family_head: contrastive embedding
 variant_effect_head: pairwise ref/alt scoring
 ```
 
-## 9. 训练阶段
+## 9. 预训练输入、输出和 loss
+
+### 9.1 预训练输入
+
+每个 batch 的主输入是结构注释基因组的窗口化 DNA 序列，不输入功能注释或 gene family 标签。
+
+正式输入：
+
+```yaml
+input_ids:
+  shape: [B, L]
+  dtype: uint8 or int64
+  content: A/C/G/T/N/MASK/PAD/BOS/EOS token ids
+
+attention_mask:
+  shape: [B, L]
+  dtype: bool
+  content: 1 for valid token, 0 for PAD
+
+mlm_mask:
+  shape: [B, L]
+  dtype: bool
+  content: positions selected for span masked nucleotide prediction
+
+mlm_labels:
+  shape: [B, L]
+  dtype: int64
+  content: original nucleotide token id at masked positions, ignore_index elsewhere
+
+region_labels:
+  shape: [B, L]
+  dtype: int64 or multi-hot
+  classes: intergenic, promoter_proximal, 5UTR, CDS, intron, 3UTR, repeat_or_TE, other
+
+splice_labels:
+  shape: [B, L, 2]
+  dtype: binary
+  channels: splice_donor, splice_acceptor
+
+frame_labels:
+  shape: [B, L]
+  dtype: int64
+  classes: frame0, frame1, frame2, non_CDS
+
+start_stop_labels:
+  shape: [B, L, 2]
+  dtype: binary
+  channels: start_codon_window, stop_codon_window
+
+repeat_labels:
+  shape: [B, L]
+  dtype: binary or int64
+  content: repeat/TE interval label where repeat annotation exists; ignore_index where unavailable
+
+rc_input_ids:
+  shape: [B, L]
+  content: reverse-complement version of input_ids for RC consistency
+
+next_window_input_ids:
+  shape: [B, L]
+  content: adjacent genomic window for contrastive learning
+
+sample_weight:
+  shape: [B]
+  content: combined genus weight, region weight, N-content weight
+```
+
+### 9.2 模型架构
+
+主干是 bidirectional RC-equivariant MambaDNA。
+
+```text
+input_ids [B, L]
+  -> token embedding [B, L, 1024]
+  -> forward Mamba stream, 36 layers
+  -> reverse-complement Mamba stream, shared or tied RC parameters
+  -> bidirectional + RC-equivariant fusion
+  -> contextual representation H [B, L, 1024]
+```
+
+输出头：
+
+```text
+mlm_logits = Linear(H) -> [B, L, 9]
+region_logits = Linear(H) -> [B, L, C_region]
+splice_logits = Linear(H) -> [B, L, 2]
+frame_logits = Linear(H) -> [B, L, 4]
+start_stop_logits = Linear(H) -> [B, L, 2]
+repeat_logits = Linear(H) -> [B, L, C_repeat]
+window_embedding = mean_pool_or_attention_pool(H) -> [B, 1024]
+```
+
+不设置以下预训练头：
+
+```text
+functional annotation head
+gene family contrastive head
+protein/domain prediction head
+```
+
+### 9.3 Loss 定义
+
+总 loss：
+
+```text
+L_total =
+  1.00 * L_mlm
+  + 1.00 * L_region
+  + 1.50 * L_cds_frame
+  + 2.00 * L_splice
+  + 1.50 * L_start_stop
+  + 1.20 * L_promoter
+  + 1.00 * L_repeat
+  + 0.20 * L_rc
+  + 0.20 * L_next_window
+```
+
+各项定义：
+
+```text
+L_mlm:
+  span masked nucleotide cross entropy，只在 mlm_mask=True 的位置计算。
+
+L_region:
+  per-base region classification loss。单标签区域用 cross entropy，多标签重叠区域用 BCE。
+
+L_cds_frame:
+  CDS 区域 reading frame 分类 loss。只在 CDS 或 CDS 邻域有效位置计算。
+
+L_splice:
+  splice donor/acceptor binary focal loss 或 weighted BCE。正例极少，因此 donor/acceptor 正例权重大于背景。
+
+L_start_stop:
+  start/stop codon window binary loss。只在蛋白编码 transcript 的 start/stop 邻域和 hard-negative 区域计算。
+
+L_promoter:
+  promoter/TSS upstream window classification loss。hard negative 来自远端 intergenic、intron 和 non-promoter upstream 区域。
+
+L_repeat:
+  TE/repeat interval loss。只在有 repeat 注释的 genome/window 上计算；无 repeat 注释的窗口使用 ignore_index，不当作 non-repeat。
+
+L_rc:
+  reverse-complement consistency loss。约束原窗口 embedding 和 RC 窗口 embedding 在方向校正后接近。
+
+L_next_window:
+  adjacent-window contrastive loss。相邻窗口为正样本，同 batch 其他 genome/远距离窗口为负样本。
+```
+
+有效 loss mask：
+
+```text
+PAD 位置不计算任何 loss。
+N 比例超阈值的窗口不进入 validation/test。
+无 repeat 注释的窗口不计算 L_repeat。
+非 CDS 区域不计算 frame 分类 loss。
+没有可靠 transcript 结构的基因不计算 splice/start/stop loss。
+```
+
+### 9.4 预训练 batch 组成
+
+每个 batch 按区域来源混合：
+
+```text
+CDS / coding exon centered windows: 25%
+splice donor/acceptor centered windows: 15%
+promoter/TSS upstream windows: 15%
+UTR and transcript boundary windows: 10%
+intron windows: 10%
+TE/repeat windows: 10%
+intergenic background windows: 10%
+random genome coverage windows: 5%
+```
+
+每个 batch 同时满足：
+
+```text
+genus-balanced sampling
+single-genus token cap <= 30%
+N-content train default <= 5%
+validation/test N-content <= 5%
+duplicate group and assembly split isolation
+```
+
+## 10. 训练阶段
 
 ### Stage 0: 数据工程
 
@@ -492,32 +664,13 @@ token budget：
 Stage 1 total: 130B tokens
 ```
 
-### Stage 2: 功能和家族继续预训练
+### Stage 2: 下游任务微调和系统评估
 
-输入：结构注释 genome 中有功能注释、gene family、TE/repeat 注释的子集。
+见第 11 节。
 
-目标：
+## 11. 下游任务设计
 
-```text
-functional annotation multi-label learning
-gene family contrastive learning
-TE/repeat prediction
-ortholog-like representation alignment
-```
-
-token budget：
-
-```text
-20B-30B tokens
-```
-
-### Stage 3: 下游任务微调和系统评估
-
-见第 10 节。
-
-## 10. 下游任务设计
-
-### 10.1 基因结构预测
+### 11.1 基因结构预测
 
 任务：
 
@@ -552,7 +705,7 @@ gene boundary F1
 cross-genus gene structure F1
 ```
 
-### 10.2 剪接位点预测
+### 11.2 剪接位点预测
 
 任务：
 
@@ -587,7 +740,7 @@ splice acceptor AUPRC
 低样本属 splice site transfer
 ```
 
-### 10.3 CDS、reading frame 和 start/stop codon 预测
+### 11.3 CDS、reading frame 和 start/stop codon 预测
 
 任务：
 
@@ -623,7 +776,7 @@ CDS boundary F1
 start/stop codon AUPRC
 ```
 
-### 10.4 启动子和 TSS 邻域预测
+### 11.4 启动子和 TSS 邻域预测
 
 任务：
 
@@ -656,7 +809,7 @@ promoter hard-negative AUPRC
 cross-genus promoter AUROC
 ```
 
-### 10.5 TE/repeat 区域识别和 TE 邻域效应表征
+### 11.5 TE/repeat 区域识别和 TE 邻域效应表征
 
 任务：
 
@@ -683,42 +836,7 @@ TE-proximal promoter classification
 
 注意：只有 47 个 genome 有 repeat 注释，因此该任务预计能优于短上下文基线，但泛化范围需要谨慎验证。
 
-### 10.6 基因家族和功能注释预测
-
-任务：
-
-```text
-gene family retrieval
-ortholog-like gene representation retrieval
-functional annotation multi-label prediction
-nodulation-related gene candidate scoring
-```
-
-评估：
-
-```text
-top-k retrieval accuracy
-mean average precision
-macro/micro F1
-cross-species retrieval accuracy
-```
-
-预计优势：
-
-```text
-相比只用 protein 序列或只用 DNA k-mer: 能结合基因上下游和结构上下文。
-相比通用 DNA LM: 豆科共生固氮、根瘤、异黄酮、种子相关基因家族更贴近训练域。
-```
-
-最可能优于基线的指标：
-
-```text
-gene family top-10 retrieval
-nodulation-related gene candidate enrichment
-cross-genus ortholog-like retrieval
-```
-
-### 10.7 大豆变异效应和 GWAS hit prioritization
+### 11.6 大豆变异效应和 GWAS hit prioritization
 
 任务：
 
@@ -749,7 +867,7 @@ splice-disrupting variant AUPRC
 
 需要谨慎：真实农艺性状预测仍需要表型、GWAS、QTL 或表达数据，DoukeGenome 主要提供候选区域和候选变异的功能先验。
 
-## 11. 基线模型和预期优势
+## 12. 基线模型和预期优势
 
 基线：
 
@@ -772,7 +890,7 @@ CDS/frame/start/stop codon prediction
 cross-genus low-label transfer
 promoter hard-negative classification
 TE/repeat boundary prediction within annotated repeat subset
-Glycine and related legumes variant functional prioritization
+Glycine and related legumes variant prioritization with structural context
 ```
 
 不保证优于基线的地方：
@@ -793,9 +911,9 @@ repeat 注释极少属的 TE 亚家族分类
 所有优势必须通过 holdout assembly、holdout genus 和外部基线比较验证。
 ```
 
-## 12. 资源和时间估算
+## 13. 资源和时间估算
 
-由于正式训练集从 493 个 genome 调整为 251 个结构注释 genome，总 token budget 从原方案 180B+20B/40B 调整为 130B+20B/30B。
+由于正式训练集从 493 个 genome 调整为 251 个结构注释 genome，并去掉功能注释、gene family 和独立 TE/repeat 子集继续预训练，总 token budget 调整为结构注释驱动 Stage 1 的 130B tokens。
 
 数据工程：
 
@@ -811,15 +929,14 @@ CPU: 32 cores
 ```text
 2 x A100 40G:
   Stage 1 130B tokens: 18-36 天
-  Stage 2 20B-30B tokens: 5-11 天
-  Stage 3 下游微调和评估: 5-14 天
-  总计: 30-65 天
+  Stage 2 下游微调和评估: 5-14 天
+  总计: 25-54 天
 
 4 x A100 40G:
-  总计: 19-40 天
+  总计: 16-33 天
 
 8 x A100 40G:
-  总计: 12-28 天
+  总计: 10-23 天
 ```
 
 扩卡规则：
@@ -830,7 +947,7 @@ CPU: 32 cores
 不通过降低到非正式小模型来解决吞吐问题。
 ```
 
-## 13. 下一步执行顺序
+## 14. 下一步执行顺序
 
 ```text
 1. 从非冗余索引生成 structural-annotation-only manifest。
@@ -842,6 +959,5 @@ CPU: 32 cores
 7. 实现 region-weighted + genus-balanced streaming dataloader。
 8. 准备 DoukeGenome-330M 训练配置。
 9. 启动 Stage 1 结构注释驱动预训练。
-10. 完成 Stage 2 功能/家族/TE 继续预训练。
-11. 系统评估下游任务和基线模型。
+10. 完成 Stage 2 下游任务微调和基线系统评估。
 ```

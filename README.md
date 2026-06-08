@@ -34,8 +34,8 @@
 1. 只使用 251 个有结构注释的去冗余豆科基因组作为正式训练集。
 2. 训练时采用属级平衡和区域级加权采样，优先学习 CDS、剪接位点、启动子、UTR、intron、TE/repeat 等区域。
 3. 使用双向、反向互补等变的长程 DNA 模型作为主干。
-4. 使用结构注释、功能注释、gene family、TE/repeat 注释进行多任务预训练。
-5. 系统评估基因结构、剪接、CDS/frame、启动子、TE/repeat、基因家族、功能注释、大豆变异效应和 GWAS hit prioritization 等下游任务。
+4. 使用结构注释和 TE/repeat 区域标签进行多任务预训练，不再设置功能注释和 gene family 继续预训练阶段。
+5. 系统评估基因结构、剪接、CDS/frame、启动子、TE/repeat、大豆变异效应和 GWAS hit prioritization 等下游任务。
 
 详细方案见：
 
