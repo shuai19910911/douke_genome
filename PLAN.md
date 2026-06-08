@@ -1,6 +1,6 @@
 # DoukeGenome 豆科结构注释驱动基因组预训练大模型正式训练方案
 
-更新时间：2026-06-08 09:54:55 CST
+更新时间：2026-06-08 10:07:34 CST
 
 ## 1. 项目目标
 
@@ -214,6 +214,128 @@ stop_codon_window
 repeat_or_TE
 ```
 
+### 4.5 输入片段过滤和保留比例
+
+当前 251 个结构注释 genome 总长度约 300.5 Gb。如果把所有序列都切成多尺度窗口并物化，会造成不必要的存储膨胀，也会让普通 intergenic 和重复背景区域主导训练。因此正式训练不全量输入所有序列，而是构建“高价值窗口索引”。
+
+过滤分两层：
+
+```text
+Layer 1: hard quality filter
+Layer 2: region-aware retention filter
+```
+
+#### 4.5.1 硬质量过滤
+
+所有训练、验证、测试窗口必须先通过：
+
+```text
+1. N 比例:
+   train 默认 N <= 5%，5%-10% 仅稀缺小属/稀缺区域低权重救援，validation/test N <= 5%。
+
+2. 连续 N:
+   任意连续 N >= 1 kb 的窗口丢弃。
+   CDS、splice、start/stop 监督窗口中连续 N >= 100 bp 丢弃。
+
+3. 有效碱基:
+   A/C/G/T >= 90%；关键监督窗口要求 A/C/G/T >= 98%。
+
+4. 低复杂度:
+   单一碱基比例 > 80% 的窗口丢弃。
+   dust/entropy 标记为低复杂度的纯背景窗口丢弃。
+
+5. contig 边缘:
+   距 contig/scaffold 两端不足 1 kb 的窗口默认丢弃，除非包含完整基因结构。
+
+6. 注释可靠性:
+   CDS 坐标越界、transcript parent 缺失、CDS 长度不成 3 倍数的区域不用于 CDS/frame/splice 监督。
+```
+
+#### 4.5.2 区域保留比例
+
+正式保留比例：
+
+```text
+CDS / coding exon:
+  保留 100%。
+  所有 coding exon、CDS frame、start/stop 相关窗口进入候选池。
+
+splice donor/acceptor:
+  保留 100%。
+  donor/acceptor 上下游至少 +/-2 kb 进入候选池。
+
+start/stop codon neighborhood:
+  保留 100%。
+  start/stop 上下游至少 +/-2 kb 进入候选池。
+
+UTR:
+  已注释 5UTR/3UTR 保留 100%。
+  transcript boundary 周边窗口保留 100%。
+
+promoter/TSS:
+  TSS upstream 0-5 kb 保留 100%。
+  TSS upstream 5-20 kb 保留 30% 高质量代表窗口。
+  若无可靠 TSS，只使用 gene upstream 2 kb 作为弱 promoter 标签。
+
+intron:
+  exon-intron boundary 两侧 2 kb 保留 100%。
+  普通 intron 内部保留 20%。
+  >20 kb 的长 intron 内部保留 10%，优先保留 GC/复杂度正常、N <= 2% 的窗口。
+
+TE/repeat:
+  有 repeat 注释的 TE/repeat interval 保留 30%。
+  距 gene body 或 promoter 20 kb 内的 TE/repeat 保留 100%。
+  无 repeat 注释 genome 不把 intergenic 伪标为 non-repeat。
+
+gene-proximal intergenic:
+  距任意 gene 20 kb 内的 intergenic 保留 20%。
+  优先保留 N <= 2%、低复杂度未标记、长度覆盖完整的窗口。
+
+distal intergenic / far noncoding:
+  只保留 10% 高质量窗口。
+  条件: N <= 2%，无长 N，非低复杂度，非高度重复，GC 在本 genome 的 5%-95% 分位范围内。
+
+random genome coverage:
+  从通过 hard filter 的全基因组窗口中额外保留 3%-5%，用于避免模型完全失去背景序列分布。
+```
+
+#### 4.5.3 去冗余和代表性控制
+
+为了进一步降低存储和重复学习：
+
+```text
+1. 同一 assembly 内高度相似窗口按 minimizer/simhash 去冗余。
+2. 对普通 intergenic 和 repeat-rich 背景，若窗口相似度 >= 95%，只保留 1 个代表。
+3. 对 CDS、splice、start/stop 不做相似性丢弃，只做质量过滤。
+4. 每个 assembly 的 distal intergenic token 占比不超过该 assembly 训练 token 的 10%。
+5. 每个属的 ordinary intergenic token 占比不超过该属训练 token 的 15%。
+```
+
+#### 4.5.4 预计过滤后规模
+
+过滤后的训练候选集不再等于 300.5 Gb 全量序列。
+
+保守估计：
+
+```text
+核心功能区域和边界窗口: 约 25-40 Gb sequence-equivalent
+intron 抽样窗口: 约 20-40 Gb
+TE/repeat 抽样窗口: 约 10-25 Gb
+gene-proximal intergenic: 约 10-20 Gb
+distal intergenic 10% 高质量子集: 约 10-20 Gb
+random genome coverage: 约 5-15 Gb
+```
+
+最终建议物化训练候选 shard：
+
+```text
+sequence-equivalent: 80-140 Gb
+考虑多尺度索引、标签、metadata 和 shard 开销: 250-600 GB
+若只保存 compact sequence store + window index: 150-350 GB
+```
+
+结论：正式训练不应全量输入所有非编码区；远端非编码区只保留约 10% 高质量代表窗口，功能区域和结构边界高保留。
+
 ## 5. 数据切分和泄漏控制
 
 必须保证一个数据集中的基因组片段不会同时出现在训练集和其他集合。
@@ -333,6 +455,8 @@ genus_id: [batch]
 ## 7. 区域加权采样
 
 由于本项目目标是结构注释驱动模型，不能让 intergenic 或 repeat-rich 背景区域淹没 CDS、剪接位点和 UTR。
+
+进入本节的候选窗口必须先通过第 4.5 节过滤；区域加权采样是在过滤后的候选池中抽样，不是从全基因组无限制抽样。
 
 训练 batch 的区域组成建议：
 
@@ -920,7 +1044,7 @@ repeat 注释极少属的 TE 亚家族分类
 ```text
 CPU: 32 cores
 内存: 128 GB
-磁盘: 2-4 TB
+磁盘: 2-4 TB；若只保留过滤后 compact 训练索引，可降到 1.5-3 TB
 时间: 2-4 天
 ```
 
@@ -949,19 +1073,20 @@ CPU: 32 cores
 
 ### 13.1 跨服务器搬运所需磁盘空间
 
-如果在本服务器完成数据处理，再把处理好的数据搬到其他服务器训练，建议不要搬运所有中间缓存。正式推荐是搬运“clean FASTA + annotation interval index + split table + region sampling index + 训练 shard”，mask、RC 输入、next-window pair 和多数 loss mask 在训练时在线生成。
+如果在本服务器完成数据处理，再把处理好的数据搬到其他服务器训练，建议不要搬运所有中间缓存。正式推荐是搬运“compact sequence store + annotation interval index + split table + filtered window index + 必要训练 shard”，mask、RC 输入、next-window pair 和多数 loss mask 在训练时在线生成。
 
-当前正式训练集为 251 个结构注释 genome，总长度约 300.5 Gb。按单碱基 token 估算，1 byte/base 的主序列至少约 300 GB；加上 FASTA header、索引、注释 interval、窗口索引、多尺度 shard 和文件系统开销后，实际需要更高空间。
+当前正式训练集为 251 个结构注释 genome，总长度约 300.5 Gb。第 4.5 节过滤后，实际物化训练候选预计为 80-140 Gb sequence-equivalent，而不是全量 300.5 Gb。
 
 三档估算：
 
 ```text
-最低可训练搬运包: 0.8-1.2 TB
+compact 最低可训练搬运包: 0.4-0.8 TB
   内容:
-    clean FASTA 或 compact 2-bit/uint8 sequence store
+    compact 2-bit/uint8 sequence store
     .fai / checksum / sequence length index
     structural annotation interval index
     train/validation/test split table
+    filtered window index
     region sampling table
     genus/assembly metadata
   特点:
@@ -970,10 +1095,10 @@ CPU: 32 cores
   适用:
     训练服务器 CPU 和 IO 足够，追求搬运体积最小
 
-推荐搬运包: 1.5-2.5 TB
+推荐搬运包: 0.6-1.2 TB
   内容:
-    最低可训练搬运包
-    8 kb / 32 kb / 64 kb 主力窗口 shard
+    compact 最低可训练搬运包
+    8 kb / 32 kb / 64 kb 过滤后主力窗口 shard
     validation/test 固定窗口 shard
     区域加权采样索引
   特点:
@@ -982,13 +1107,13 @@ CPU: 32 cores
   适用:
     推荐方案
 
-完整处理缓存搬运包: 3-5 TB
+完整过滤后 shard 搬运包: 1.0-1.8 TB
   内容:
-    clean FASTA
-    所有多尺度窗口 shard: 8 kb / 32 kb / 64 kb / 128 kb
-    annotation-aware labels
+    compact sequence store
+    过滤后的所有多尺度窗口 shard: 8 kb / 32 kb / 64 kb / 128 kb
+    结构注释 labels
     validation/test 固定 shard
-    中间 interval cache
+    filtered interval cache
     QC 报告和统计表
   特点:
     最省训练服务器预处理时间
@@ -1011,9 +1136,9 @@ CPU: 32 cores
 训练服务器建议预留：
 
 ```text
-只训练不长期保存中间产物: 至少 2 TB 可用空间
-推荐稳定训练: 4 TB 可用空间
-完整缓存 + 多 checkpoint: 6-8 TB 可用空间
+只训练不长期保存中间产物: 至少 1.5-2 TB 可用空间
+推荐稳定训练: 2-4 TB 可用空间
+完整过滤后 shard + 多 checkpoint: 4-6 TB 可用空间
 ```
 
 搬运时间粗估：
@@ -1021,16 +1146,16 @@ CPU: 32 cores
 ```text
 1 Gbps 网络:
   1 TB 约 2.5-3.5 小时理论值，实际常见 4-8 小时
-  2.5 TB 常见 10-20 小时
+  1.8 TB 常见 8-15 小时
 
 10 Gbps 网络:
   1 TB 常见 0.5-1.5 小时
-  2.5 TB 常见 1.5-4 小时
+  1.8 TB 常见 1-3 小时
 
 普通机械硬盘或共享文件系统会显著拖慢，实际以 rsync/sha256 校验速度为准。
 ```
 
-最终建议：优先准备 **1.5-2.5 TB 推荐搬运包**。这样训练服务器不需要重新做完整预处理，同时不会把所有临时缓存和动态样本都搬过去。
+最终建议：优先准备 **0.6-1.2 TB 推荐搬运包**。这样训练服务器不需要重新做完整预处理，同时不会把所有临时缓存和动态样本都搬过去。
 
 ## 14. 下一步执行顺序
 
@@ -1039,10 +1164,11 @@ CPU: 32 cores
 2. 标准化 251 个 genome 的 FASTA 和结构注释。
 3. 生成 leakage-safe split table，确保 duplicate group、assembly、interval、gene 不跨 split。
 4. 将 N 阈值从 20% 改为正式 5%，最多训练救援到 10%。
-5. 生成区域权重表：CDS、splice、promoter、UTR、intron、repeat、intergenic。
-6. 生成 8 kb/32 kb/64 kb/128 kb 多尺度 shards。
-7. 实现 region-weighted + genus-balanced streaming dataloader。
-8. 准备 DoukeGenome-330M 训练配置。
-9. 启动 Stage 1 结构注释驱动预训练。
-10. 完成 Stage 2 下游任务微调和基线系统评估。
+5. 生成输入片段过滤索引：CDS/splice/start-stop/UTR/promoter 高保留，普通 intron/intergenic/TE 按比例抽样。
+6. 生成区域权重表：CDS、splice、promoter、UTR、intron、repeat、intergenic。
+7. 生成过滤后的 8 kb/32 kb/64 kb/128 kb 多尺度 shards，或 compact sequence store + window index。
+8. 实现 region-weighted + genus-balanced streaming dataloader。
+9. 准备 DoukeGenome-330M 训练配置。
+10. 启动 Stage 1 结构注释驱动预训练。
+11. 完成 Stage 2 下游任务微调和基线系统评估。
 ```

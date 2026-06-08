@@ -52,6 +52,14 @@
 - 明确训练服务器磁盘建议：只训练至少 2 TB 可用空间，推荐稳定训练 4 TB，完整缓存和多 checkpoint 场景 6-8 TB。
 - 明确不建议搬运动态 mask 后样本、RC 实体副本、next-window pair 实体副本和临时解压文件，避免不必要地放大搬运体积。
 
+## 2026-06-08 10:07:34 CST
+
+- 新增输入片段过滤策略：正式训练不再全量输入所有序列，而是先做硬质量过滤，再按基因组区域保留比例构建高价值窗口索引。
+- 明确区域保留比例：CDS、splice、start/stop、UTR、近端 promoter 保留 100%；普通 intron 内部保留约 20%；gene-proximal intergenic 保留约 20%；distal intergenic/far noncoding 只保留约 10% 高质量代表窗口。
+- 明确远端非编码区高质量标准：N <= 2%、无长 N、非低复杂度、非高度重复、GC 位于本 genome 的 5%-95% 分位范围。
+- 新增相似窗口去冗余策略：普通 intergenic 和 repeat-rich 背景窗口相似度 >= 95% 时只保留代表窗口；CDS、splice、start/stop 不因相似性丢弃。
+- 根据过滤策略更新存储估算：过滤后训练 shard 约 250-600 GB，compact sequence store + window index 约 150-350 GB；跨服务器 compact 推荐搬运包约 0.6-1.2 TB，full shard 推荐搬运包约 1.0-1.8 TB。
+
 ## 后续阶段
 
 - 2026-06-08 之后：生成 structural-annotation-only 训练样本清单。
