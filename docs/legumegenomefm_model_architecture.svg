@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1400" viewBox="0 0 2400 1400">
+  <defs>
+    <style>
+      .bg { fill: #f7fafc; }
+      .title { font: 700 46px Arial, "Noto Sans CJK SC", sans-serif; fill: #152238; }
+      .subtitle { font: 400 24px Arial, "Noto Sans CJK SC", sans-serif; fill: #4a5568; }
+      .section { font: 700 28px Arial, "Noto Sans CJK SC", sans-serif; fill: #162033; }
+      .text { font: 400 21px Arial, "Noto Sans CJK SC", sans-serif; fill: #1f2937; }
+      .small { font: 400 18px Arial, "Noto Sans CJK SC", sans-serif; fill: #374151; }
+      .tiny { font: 400 16px Arial, "Noto Sans CJK SC", sans-serif; fill: #4b5563; }
+      .formula { font: 700 23px Arial, "Noto Sans CJK SC", sans-serif; fill: #111827; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 14; }
+      .blue { fill: #e8f1ff; stroke: #3b82f6; }
+      .green { fill: #e7f8ef; stroke: #22a06b; }
+      .orange { fill: #fff3df; stroke: #f59e0b; }
+      .purple { fill: #f0ebff; stroke: #7c3aed; }
+      .red { fill: #fff0f0; stroke: #ef4444; }
+      .gray { fill: #f8fafc; stroke: #94a3b8; }
+      .arrow { stroke: #475569; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .arrow2 { stroke: #2563eb; stroke-width: 3; fill: none; marker-end: url(#arrowBlue); }
+      .dash { stroke: #7c3aed; stroke-width: 3; stroke-dasharray: 10 8; fill: none; marker-end: url(#arrowPurple); }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#475569"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="2400" height="1400"/>
+  <text class="title" x="80" y="78">LegumeGenomeFM-330M 纯模型架构</text>
+  <text class="subtitle" x="80" y="118">同一模型处理 8 kb / 32 kb / 64 kb / 128 kb 多尺度基因组片段，使用 RC-equivariant 双流 Mamba backbone 与多任务预训练 loss。</text>
+
+  <!-- Multi-scale input -->
+  <rect class="box blue" x="70" y="170" width="385" height="580"/>
+  <text class="section" x="100" y="220">多尺度基因组输入</text>
+  <rect class="box" x="100" y="255" width="325" height="56"/>
+  <text class="text" x="122" y="291">8 kb：CDS / splice / motif</text>
+  <rect class="box" x="100" y="325" width="325" height="56"/>
+  <text class="text" x="122" y="361">32 kb：gene body / promoter</text>
+  <rect class="box" x="100" y="395" width="325" height="56"/>
+  <text class="text" x="122" y="431">64 kb：proximal regulatory context</text>
+  <rect class="box" x="100" y="465" width="325" height="56"/>
+  <text class="text" x="122" y="501">128 kb：TE / intergenic context</text>
+  <text class="small" x="100" y="560">输入张量</text>
+  <text class="text" x="120" y="600">input_ids</text>
+  <text class="text" x="120" y="635">attention_mask</text>
+  <text class="text" x="120" y="670">region_labels / mlm_mask</text>
+  <text class="text" x="120" y="705">sample_weight</text>
+
+  <!-- Shared encoding -->
+  <rect class="box green" x="520" y="200" width="355" height="520"/>
+  <text class="section" x="550" y="250">共享编码层</text>
+  <rect class="box" x="550" y="285" width="295" height="62"/>
+  <text class="text" x="574" y="323">6-mer / BPE tokenizer</text>
+  <rect class="box" x="550" y="370" width="295" height="74"/>
+  <text class="text" x="574" y="402">token embedding</text>
+  <text class="small" x="574" y="429">+ position/state encoding</text>
+  <rect class="box" x="550" y="468" width="295" height="62"/>
+  <text class="text" x="574" y="506">region embedding</text>
+  <rect class="box" x="550" y="553" width="295" height="82"/>
+  <text class="text" x="574" y="586">strand / RC indicator</text>
+  <text class="small" x="574" y="613">forward 与 reverse-complement</text>
+
+  <!-- Backbone -->
+  <rect class="box purple" x="950" y="165" width="690" height="650"/>
+  <text class="section" x="990" y="215">RC-equivariant Dual-Stream Mamba Backbone</text>
+  <text class="small" x="990" y="252">LegumeGenomeFM-330M：d_model=1536，L=32，task modules 输出各类监督信号</text>
+
+  <rect class="box" x="990" y="295" width="610" height="175"/>
+  <text class="text" x="1020" y="333">Forward stream：selective SSM blocks × L</text>
+  <rect class="gray" x="1020" y="360" width="110" height="52"/>
+  <text class="tiny" x="1041" y="392">RMSNorm</text>
+  <rect class="gray" x="1150" y="360" width="135" height="52"/>
+  <text class="tiny" x="1175" y="392">Selective scan</text>
+  <rect class="gray" x="1305" y="360" width="112" height="52"/>
+  <text class="tiny" x="1325" y="392">Gated MLP</text>
+  <rect class="gray" x="1437" y="360" width="110" height="52"/>
+  <text class="tiny" x="1462" y="392">Residual</text>
+  <text class="small" x="1020" y="445">因果/状态空间序列建模，适合长基因组片段。</text>
+
+  <rect class="box" x="990" y="535" width="610" height="175"/>
+  <text class="text" x="1020" y="573">Reverse-complement stream：共享参数 SSM blocks × L</text>
+  <rect class="gray" x="1020" y="600" width="110" height="52"/>
+  <text class="tiny" x="1041" y="632">RMSNorm</text>
+  <rect class="gray" x="1150" y="600" width="135" height="52"/>
+  <text class="tiny" x="1175" y="632">Selective scan</text>
+  <rect class="gray" x="1305" y="600" width="112" height="52"/>
+  <text class="tiny" x="1325" y="632">Gated MLP</text>
+  <rect class="gray" x="1437" y="600" width="110" height="52"/>
+  <text class="tiny" x="1462" y="632">DropPath</text>
+  <text class="small" x="1020" y="685">反向互补输入与正向流保持等变约束。</text>
+
+  <path class="dash" d="M1295 475 C1295 505,1295 505,1295 535"/>
+  <text class="small" x="1320" y="512">RC consistency constraint</text>
+
+  <!-- Fusion -->
+  <rect class="box orange" x="1710" y="205" width="305" height="510"/>
+  <text class="section" x="1740" y="255">双向融合与池化</text>
+  <rect class="box" x="1740" y="292" width="245" height="64"/>
+  <text class="text" x="1760" y="331">RC-aware fusion</text>
+  <rect class="box" x="1740" y="380" width="245" height="64"/>
+  <text class="text" x="1760" y="419">token hidden states</text>
+  <rect class="box" x="1740" y="468" width="245" height="64"/>
+  <text class="text" x="1760" y="507">region-aware pooling</text>
+  <rect class="box" x="1740" y="556" width="245" height="64"/>
+  <text class="text" x="1760" y="595">window representation</text>
+  <text class="small" x="1740" y="665">输出 token-level 与 window-level 表征</text>
+
+  <!-- Heads -->
+  <rect class="box red" x="2075" y="150" width="270" height="695"/>
+  <text class="section" x="2105" y="200">预训练任务 Heads</text>
+  <rect class="box" x="2105" y="235" width="210" height="55"/>
+  <text class="small" x="2123" y="269">Masked nucleotide LM</text>
+  <rect class="box" x="2105" y="310" width="210" height="55"/>
+  <text class="small" x="2123" y="344">Region classification</text>
+  <rect class="box" x="2105" y="385" width="210" height="55"/>
+  <text class="small" x="2123" y="419">Splice donor/acceptor</text>
+  <rect class="box" x="2105" y="460" width="210" height="55"/>
+  <text class="small" x="2123" y="494">CDS frame / start-stop</text>
+  <rect class="box" x="2105" y="535" width="210" height="55"/>
+  <text class="small" x="2123" y="569">TE / repeat signal</text>
+  <rect class="box" x="2105" y="610" width="210" height="55"/>
+  <text class="small" x="2123" y="644">Next-window contrastive</text>
+
+  <rect class="box" x="2095" y="700" width="230" height="112"/>
+  <text class="formula" x="2115" y="735">总 Loss</text>
+  <text class="tiny" x="2115" y="766">L = L_MLM + L_region</text>
+  <text class="tiny" x="2115" y="790">+ L_splice + L_frame</text>
+  <text class="tiny" x="2115" y="814">+ L_startstop + L_repeat</text>
+  <text class="tiny" x="2115" y="838">+ L_RC + L_next</text>
+
+  <!-- arrows -->
+  <path class="arrow" d="M455 460 L520 460"/>
+  <path class="arrow" d="M875 460 L950 460"/>
+  <path class="arrow" d="M1640 460 L1710 460"/>
+  <path class="arrow" d="M2015 460 L2075 460"/>
+  <path class="arrow2" d="M2015 590 C2050 590,2050 735,2095 735"/>
+
+  <!-- Loss weighting -->
+  <rect class="box gray" x="950" y="880" width="1395" height="120"/>
+  <text class="section" x="990" y="928">sample_weight 区域加权</text>
+  <text class="text" x="990" y="970">CDS / splice / start-stop / UTR 最高权重；promoter 与 TE/repeat 中高权重；intron 与 intergenic 作为结构和背景上下文。</text>
+
+  <!-- Length policy -->
+  <rect class="box green" x="70" y="1060" width="2275" height="210"/>
+  <text class="section" x="110" y="1110">不同输入长度的训练策略</text>
+  <text class="text" x="110" y="1160">不训练 4 个独立模型。采用同一 LegumeGenomeFM-330M，通过混合长度 batch + token-budget batch sampler 训练。</text>
+  <text class="text" x="110" y="1200">训练前期提高 8 kb / 32 kb 比例以稳定局部语法和基因结构；中后期逐步提高 64 kb / 128 kb 比例学习远程调控、TE 和 intergenic context。</text>
+  <text class="text" x="110" y="1240">若显存或吞吐限制明显，先完成 8-64 kb 正式预训练，再做 128 kb long-context continue pretraining；模型权重连续继承，不另起模型。</text>
+
+  <text class="tiny" x="80" y="1350">Figure: LegumeGenomeFM pure model architecture. Data preprocessing, download, and compact package construction are intentionally excluded.</text>
+</svg>
