@@ -60,6 +60,13 @@
 - 新增相似窗口去冗余策略：普通 intergenic 和 repeat-rich 背景窗口相似度 >= 95% 时只保留代表窗口；CDS、splice、start/stop 不因相似性丢弃。
 - 根据过滤策略更新存储估算：过滤后训练 shard 约 250-600 GB，compact sequence store + window index 约 150-350 GB；跨服务器 compact 推荐搬运包约 0.6-1.2 TB，full shard 推荐搬运包约 1.0-1.8 TB。
 
+## 2026-06-08 10:22:28 CST
+
+- 加大 TE/repeat 训练比例：有 repeat 注释的 TE/repeat interval 保留比例从 30% 提高到 50%，TE 边界和 gene/promoter 附近 TE 保留 100%。
+- 将训练 batch 中 TE/repeat 目标比例从 10% 提高到 15%，同时设置 TE/repeat token 上限为 20%，避免 47 个 repeat 注释基因组过度支配训练。
+- 为控制重复序列过拟合，保留 TE 相似窗口 >=95% 去冗余，并限制单个 repeat-annotated assembly 不超过 TE/repeat token 的 20%。
+- 更新过滤后搬运空间估算：compact 最低包约 0.5-0.9 TB，推荐搬运包约 0.8-1.4 TB，完整过滤后 shard 包约 1.2-2.2 TB；训练服务器推荐预留 3-4 TB，完整缓存和多 checkpoint 场景 5-7 TB。
+
 ## 后续阶段
 
 - 2026-06-08 之后：生成 structural-annotation-only 训练样本清单。

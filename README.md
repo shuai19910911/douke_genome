@@ -39,11 +39,11 @@
 
 ## 输入片段过滤
 
-训练不会把所有序列都输入模型。功能区域高保留，普通远端非编码区只保留高质量代表子集：CDS、剪接位点、start/stop、UTR 和近端 promoter 保留 100%；普通 intron 内部保留约 20%；gene-proximal intergenic 保留约 20%；distal intergenic/far noncoding 只保留约 10% 且要求 N <= 2%、非低复杂度、非高度重复。
+训练不会把所有序列都输入模型。功能区域高保留，普通远端非编码区只保留高质量代表子集：CDS、剪接位点、start/stop、UTR 和近端 promoter 保留 100%；普通 intron 内部保留约 20%；gene-proximal intergenic 保留约 20%；distal intergenic/far noncoding 只保留约 10% 且要求 N <= 2%、非低复杂度、非高度重复。TE/repeat 比例已加大：有 repeat 注释的 TE interval 保留 50%，TE 边界和 gene/promoter 附近 TE 保留 100%，训练 batch 中 TE/repeat 目标比例为 15%，上限 20%。
 
 ## 跨服务器训练数据搬运
 
-如果在本服务器完成数据处理，再搬到其他服务器训练，过滤后推荐准备 **0.6-1.2 TB** 的训练数据包；最低 compact 可训练包约 **0.4-0.8 TB**，完整过滤后 shard 包约 **1.0-1.8 TB**。目标训练服务器建议至少预留 **2-4 TB** 可用空间，完整缓存和多 checkpoint 场景建议 **4-6 TB**。
+如果在本服务器完成数据处理，再搬到其他服务器训练，过滤并加大 TE/repeat 后推荐准备 **0.8-1.4 TB** 的训练数据包；最低 compact 可训练包约 **0.5-0.9 TB**，完整过滤后 shard 包约 **1.2-2.2 TB**。目标训练服务器建议至少预留 **3-4 TB** 可用空间，完整缓存和多 checkpoint 场景建议 **5-7 TB**。
 
 详细方案见：
 

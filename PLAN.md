@@ -1,6 +1,6 @@
 # DoukeGenome 豆科结构注释驱动基因组预训练大模型正式训练方案
 
-更新时间：2026-06-08 10:07:34 CST
+更新时间：2026-06-08 10:22:28 CST
 
 ## 1. 项目目标
 
@@ -283,8 +283,9 @@ intron:
   >20 kb 的长 intron 内部保留 10%，优先保留 GC/复杂度正常、N <= 2% 的窗口。
 
 TE/repeat:
-  有 repeat 注释的 TE/repeat interval 保留 30%。
+  有 repeat 注释的 TE/repeat interval 保留 50%。
   距 gene body 或 promoter 20 kb 内的 TE/repeat 保留 100%。
+  TE 边界上下游 +/-2 kb 保留 100%。
   无 repeat 注释 genome 不把 intergenic 伪标为 non-repeat。
 
 gene-proximal intergenic:
@@ -320,7 +321,7 @@ random genome coverage:
 ```text
 核心功能区域和边界窗口: 约 25-40 Gb sequence-equivalent
 intron 抽样窗口: 约 20-40 Gb
-TE/repeat 抽样窗口: 约 10-25 Gb
+TE/repeat 抽样窗口: 约 20-40 Gb
 gene-proximal intergenic: 约 10-20 Gb
 distal intergenic 10% 高质量子集: 约 10-20 Gb
 random genome coverage: 约 5-15 Gb
@@ -329,9 +330,9 @@ random genome coverage: 约 5-15 Gb
 最终建议物化训练候选 shard：
 
 ```text
-sequence-equivalent: 80-140 Gb
-考虑多尺度索引、标签、metadata 和 shard 开销: 250-600 GB
-若只保存 compact sequence store + window index: 150-350 GB
+sequence-equivalent: 90-160 Gb
+考虑多尺度索引、标签、metadata 和 shard 开销: 300-700 GB
+若只保存 compact sequence store + window index: 180-420 GB
 ```
 
 结论：正式训练不应全量输入所有非编码区；远端非编码区只保留约 10% 高质量代表窗口，功能区域和结构边界高保留。
@@ -466,12 +467,22 @@ splice donor/acceptor centered windows: 15%
 promoter/TSS upstream windows: 15%
 UTR and transcript boundary windows: 10%
 intron windows: 10%
-TE/repeat windows: 10%
-intergenic background windows: 10%
-random genome coverage windows: 5%
+TE/repeat windows: 15%
+intergenic background windows: 7%
+random genome coverage windows: 3%
 ```
 
 如果某个基因组缺少 TE/repeat 注释，则 TE/repeat 配额只从有 repeat 注释的 47 个基因组中采样；缺失 repeat 注释的基因组不把 intergenic 区域伪标为 non-repeat。
+
+TE/repeat 加权约束：
+
+```text
+TE/repeat token 占总 batch token 的目标比例为 15%。
+TE/repeat token 占比最高不超过 20%。
+单个 repeat-annotated assembly 不超过 TE/repeat token 的 20%。
+TE 相似窗口按 >=95% 相似度去冗余，避免简单重复序列过度训练。
+TE 边界、gene-proximal TE、promoter-proximal TE 优先级高于 TE 内部普通窗口。
+```
 
 loss 权重：
 
@@ -722,9 +733,9 @@ splice donor/acceptor centered windows: 15%
 promoter/TSS upstream windows: 15%
 UTR and transcript boundary windows: 10%
 intron windows: 10%
-TE/repeat windows: 10%
-intergenic background windows: 10%
-random genome coverage windows: 5%
+TE/repeat windows: 15%
+intergenic background windows: 7%
+random genome coverage windows: 3%
 ```
 
 每个 batch 同时满足：
@@ -1075,12 +1086,12 @@ CPU: 32 cores
 
 如果在本服务器完成数据处理，再把处理好的数据搬到其他服务器训练，建议不要搬运所有中间缓存。正式推荐是搬运“compact sequence store + annotation interval index + split table + filtered window index + 必要训练 shard”，mask、RC 输入、next-window pair 和多数 loss mask 在训练时在线生成。
 
-当前正式训练集为 251 个结构注释 genome，总长度约 300.5 Gb。第 4.5 节过滤后，实际物化训练候选预计为 80-140 Gb sequence-equivalent，而不是全量 300.5 Gb。
+当前正式训练集为 251 个结构注释 genome，总长度约 300.5 Gb。第 4.5 节过滤并加大 TE/repeat 比例后，实际物化训练候选预计为 90-160 Gb sequence-equivalent，而不是全量 300.5 Gb。
 
 三档估算：
 
 ```text
-compact 最低可训练搬运包: 0.4-0.8 TB
+compact 最低可训练搬运包: 0.5-0.9 TB
   内容:
     compact 2-bit/uint8 sequence store
     .fai / checksum / sequence length index
@@ -1095,7 +1106,7 @@ compact 最低可训练搬运包: 0.4-0.8 TB
   适用:
     训练服务器 CPU 和 IO 足够，追求搬运体积最小
 
-推荐搬运包: 0.6-1.2 TB
+推荐搬运包: 0.8-1.4 TB
   内容:
     compact 最低可训练搬运包
     8 kb / 32 kb / 64 kb 过滤后主力窗口 shard
@@ -1107,7 +1118,7 @@ compact 最低可训练搬运包: 0.4-0.8 TB
   适用:
     推荐方案
 
-完整过滤后 shard 搬运包: 1.0-1.8 TB
+完整过滤后 shard 搬运包: 1.2-2.2 TB
   内容:
     compact sequence store
     过滤后的所有多尺度窗口 shard: 8 kb / 32 kb / 64 kb / 128 kb
@@ -1136,9 +1147,9 @@ compact 最低可训练搬运包: 0.4-0.8 TB
 训练服务器建议预留：
 
 ```text
-只训练不长期保存中间产物: 至少 1.5-2 TB 可用空间
-推荐稳定训练: 2-4 TB 可用空间
-完整过滤后 shard + 多 checkpoint: 4-6 TB 可用空间
+只训练不长期保存中间产物: 至少 2 TB 可用空间
+推荐稳定训练: 3-4 TB 可用空间
+完整过滤后 shard + 多 checkpoint: 5-7 TB 可用空间
 ```
 
 搬运时间粗估：
@@ -1146,16 +1157,16 @@ compact 最低可训练搬运包: 0.4-0.8 TB
 ```text
 1 Gbps 网络:
   1 TB 约 2.5-3.5 小时理论值，实际常见 4-8 小时
-  1.8 TB 常见 8-15 小时
+  2.2 TB 常见 10-18 小时
 
 10 Gbps 网络:
   1 TB 常见 0.5-1.5 小时
-  1.8 TB 常见 1-3 小时
+  2.2 TB 常见 1.5-4 小时
 
 普通机械硬盘或共享文件系统会显著拖慢，实际以 rsync/sha256 校验速度为准。
 ```
 
-最终建议：优先准备 **0.6-1.2 TB 推荐搬运包**。这样训练服务器不需要重新做完整预处理，同时不会把所有临时缓存和动态样本都搬过去。
+最终建议：优先准备 **0.8-1.4 TB 推荐搬运包**。这样训练服务器不需要重新做完整预处理，同时不会把所有临时缓存和动态样本都搬过去。
 
 ## 14. 下一步执行顺序
 
