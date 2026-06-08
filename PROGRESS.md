@@ -75,11 +75,25 @@
 - 更新跨服务器搬运估算：极简 compact 可训练包约 0.25-0.50 TB，推荐 compact 搬运包约 0.40-0.70 TB，带少量固定 shard 搬运包约 0.50-0.90 TB。
 - 更新训练服务器磁盘建议：最低 1 TB，稳定训练 1.5-2 TB，多 checkpoint 场景 2-3 TB。
 
+## 2026-06-08 11:18:59 CST
+
+- 生成推荐 compact 搬运包的数据预处理脚本和 Slurm 脚本：`scripts/prepare_compact_douke.py`、`scripts/slurm_prepare_compact_douke_manifest_only.sh`、`scripts/slurm_prepare_compact_douke.sh`、`scripts/gpu_smoke_test_command.sh`。
+- 建立 compact 搬运包目录：`data/compact_douke_v1/`，包含 `manifests/`、`indexes/`、`files/genomes/`、`files/annotations/`、`files/repeats/`、`docs/` 和 `logs/`。
+- 生成并保存技术路线图图片：`docs/douke_compact_technical_route.png`，并在 `data/compact_douke_v1/docs/` 中保留一份，方便后续随 compact 包搬运。
+- 生成详细数据预处理技术路线文档：`docs/compact_preprocessing_route.md`，说明输入数据、过滤策略、目录结构、CPU Slurm 命令、GPU smoke test 命令、搬运命令和资源耗时估算。
+- 已提交 manifest-only 预检查作业：`job_id=8462014`，分区 `q07`，节点 `cu16`，资源 `4 cores / 16G memory`；该作业用于先组织 compact 文件链接并生成清单，确认无误后再提交 30 核 150G 的完整索引构建作业。
+
+## 2026-06-08 11:29:18 CST
+
+- manifest-only 预检查作业 `job_id=8462014` 已完成。
+- compact manifest 核对结果：251 个结构注释基因组、29 个属；`compact_manifest.tsv` 252 行，`selected_files.tsv` 550 行，`split.tsv` 252 行。
+- 实际入选文件：251 个 genome、206 个 gff3、45 个 gff、47 个 repeat 注释文件；当前 compact 目录占用约 81G。
+- leakage-safe split 当前分布：train 191、validation 33、test 27。
+- 已提交完整 compact 索引构建作业：`job_id=8462433`，分区 `q07`，节点 `cu19`，资源 `30 cores / 150G memory`；该作业将生成 `sequence_index.tsv`、`filtered_windows.tsv` 和 `region_sampling_weights.tsv`。
+
 ## 后续阶段
 
-- 2026-06-08 之后：生成 structural-annotation-only 训练样本清单。
-- 2026-06-08 之后：构建属级平衡 + 区域级加权采样器。
-- 2026-06-08 之后：实现 FASTA 标准化、结构注释标准化、窗口化和多任务标签构建。
+- 2026-06-08 之后：等待完整 compact 索引构建作业 `job_id=8462433` 完成，核对 `sequence_index.tsv`、`filtered_windows.tsv` 和 `region_sampling_weights.tsv`。
 - 2026-06-08 之后：生成 leakage-safe split table，保证 duplicate group、assembly、interval、gene 不跨 split。
 - 2026-06-08 之后：准备 DoukeGenome-330M 训练配置。
 - 2026-06-08 之后：启动正式结构注释驱动预训练并记录 loss、mask accuracy、region F1、splice AUPRC、RC consistency 和下游验证指标。

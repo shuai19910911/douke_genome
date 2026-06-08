@@ -1,3 +1,8 @@
+# Biological data and local execution artifacts: keep local, do not push to GitHub.
+data/
+docs/
+scripts/
+
 # Raw downloaded biological data: keep local, do not push to GitHub.
 data/raw/
 data/nonredundant/
