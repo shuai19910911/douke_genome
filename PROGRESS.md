@@ -97,6 +97,13 @@
 - 正式主模型名更新为 `LegumeGenomeFM-330M`，中文描述为“豆科基因组基础模型”。
 - 保留当前正在运行作业使用的本地 legacy 目录和脚本名，避免影响 `job_id=8462433` 的路径依赖；对外文档、论文和模型命名统一使用 `LegumeGenomeFM`。
 
+## 2026-06-08 12:03:18 CST
+
+- 按正式名称重新生成大尺寸技术路线图，标题更新为 `LegumeGenomeFM 豆科基因组基础模型`；本地项目和 compact 搬运包内均保留新版图片。
+- 同步更新本地 compact 预处理说明和随包 `README_COMPACT_PACKAGE.md`，将对外标题和搬运目标目录统一为 `LegumeGenomeFM`。
+- 完整 compact 索引构建作业 `job_id=8462433` 仍在 `cu19` 运行，已运行约 34 分钟。
+- 当前 compact 包状态：`data/compact_douke_v1/` 占用约 81G；`filtered_windows.tsv` 已生成 1,725,169 行；`sequence_index.tsv` 仍在等待作业结束或缓冲刷新。
+
 ## 后续阶段
 
 - 2026-06-08 之后：等待完整 compact 索引构建作业 `job_id=8462433` 完成，核对 `sequence_index.tsv`、`filtered_windows.tsv` 和 `region_sampling_weights.tsv`。
