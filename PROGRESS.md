@@ -128,6 +128,14 @@
 - 已提交新的自动合并依赖作业 `job_id=8462872`，等待 `8462868` 全部成功后合并并行索引结果。
 - 若个别超大 genome 分片因 50G 内存不足失败，后续只单独以 `100-150G` 内存重跑失败分片，不影响已完成 part。
 
+## 2026-06-08 21:06:36 CST
+
+- 将临时评估文档 `docs/TEMP_LEGUME_CONTEXT_LENGTH_STRATEGY_EVALUATION.md` 的推荐结论合并进正式 `PLAN.md`。
+- 正式训练长度策略更新为同一个 `LegumeGenomeFM-330M` 的渐进式扩长：`Stage 1A 32 kb 主训练` -> `Stage 1B 64 kb 继续训练` -> `Stage 1C 128 kb long-context continue pretraining`。
+- 明确不训练多个独立长度模型，也不把 `8 kb / 32 kb / 64 kb / 128 kb` 从第一步开始等比例完全混合。
+- 新增每阶段 token 组成、短长度 replay、context_bucket/region_bucket 两级采样、同长度 micro-batch、gradient accumulation 层面混合、每长度 bucket loss 记录和进入下一阶段条件。
+- 训练时间估算同步改为 Stage 1A/1B/1C 分段估算，Stage 1 总预算仍以约 `130B tokens` 为目标。
+
 ## 后续阶段
 
 - 2026-06-08 之后：等待优化后的并行 compact 索引作业 `job_id=8462868` 和合并作业 `job_id=8462872` 完成，核对 `indexes_parallel/sequence_index.tsv`、`indexes_parallel/filtered_windows.tsv` 和 `indexes_parallel/region_sampling_weights.tsv`。
