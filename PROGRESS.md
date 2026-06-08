@@ -46,6 +46,12 @@
 - 明确模型架构流：token embedding -> forward Mamba stream -> reverse-complement Mamba stream -> RC-equivariant bidirectional fusion -> task heads。
 - 明确总 loss 公式：`L_mlm + L_region + L_cds_frame + L_splice + L_start_stop + L_promoter + L_repeat + L_rc + L_next_window`，并写明每项 loss 的适用 mask。
 
+## 2026-06-08 09:54:55 CST
+
+- 新增跨服务器搬运空间估算：最低可训练搬运包约 0.8-1.2 TB，推荐搬运包约 1.5-2.5 TB，完整处理缓存约 3-5 TB。
+- 明确训练服务器磁盘建议：只训练至少 2 TB 可用空间，推荐稳定训练 4 TB，完整缓存和多 checkpoint 场景 6-8 TB。
+- 明确不建议搬运动态 mask 后样本、RC 实体副本、next-window pair 实体副本和临时解压文件，避免不必要地放大搬运体积。
+
 ## 后续阶段
 
 - 2026-06-08 之后：生成 structural-annotation-only 训练样本清单。

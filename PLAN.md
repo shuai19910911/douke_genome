@@ -1,6 +1,6 @@
 # DoukeGenome 豆科结构注释驱动基因组预训练大模型正式训练方案
 
-更新时间：2026-06-08 09:50:28 CST
+更新时间：2026-06-08 09:54:55 CST
 
 ## 1. 项目目标
 
@@ -946,6 +946,91 @@ CPU: 32 cores
 如果 64 kb/128 kb 是主要目标，建议 8 卡。
 不通过降低到非正式小模型来解决吞吐问题。
 ```
+
+### 13.1 跨服务器搬运所需磁盘空间
+
+如果在本服务器完成数据处理，再把处理好的数据搬到其他服务器训练，建议不要搬运所有中间缓存。正式推荐是搬运“clean FASTA + annotation interval index + split table + region sampling index + 训练 shard”，mask、RC 输入、next-window pair 和多数 loss mask 在训练时在线生成。
+
+当前正式训练集为 251 个结构注释 genome，总长度约 300.5 Gb。按单碱基 token 估算，1 byte/base 的主序列至少约 300 GB；加上 FASTA header、索引、注释 interval、窗口索引、多尺度 shard 和文件系统开销后，实际需要更高空间。
+
+三档估算：
+
+```text
+最低可训练搬运包: 0.8-1.2 TB
+  内容:
+    clean FASTA 或 compact 2-bit/uint8 sequence store
+    .fai / checksum / sequence length index
+    structural annotation interval index
+    train/validation/test split table
+    region sampling table
+    genus/assembly metadata
+  特点:
+    不搬完整预生成窗口 shard
+    训练服务器在线随机取窗口、在线 mask、在线生成 RC 和 next-window pair
+  适用:
+    训练服务器 CPU 和 IO 足够，追求搬运体积最小
+
+推荐搬运包: 1.5-2.5 TB
+  内容:
+    最低可训练搬运包
+    8 kb / 32 kb / 64 kb 主力窗口 shard
+    validation/test 固定窗口 shard
+    区域加权采样索引
+  特点:
+    训练启动快，复现实验方便
+    128 kb 可在训练服务器在线生成或单独补充
+  适用:
+    推荐方案
+
+完整处理缓存搬运包: 3-5 TB
+  内容:
+    clean FASTA
+    所有多尺度窗口 shard: 8 kb / 32 kb / 64 kb / 128 kb
+    annotation-aware labels
+    validation/test 固定 shard
+    中间 interval cache
+    QC 报告和统计表
+  特点:
+    最省训练服务器预处理时间
+    搬运时间和目标服务器磁盘压力最大
+  适用:
+    目标服务器 IO 较弱，或需要完全复现本服务器处理结果
+```
+
+不建议搬运：
+
+```text
+每一步临时解压文件
+重复 FASTA 副本
+每个 epoch 的动态 mask 后样本
+每个窗口的 rc_input_ids 实体副本
+所有 next-window pair 的实体副本
+完整 optimizer checkpoint 历史
+```
+
+训练服务器建议预留：
+
+```text
+只训练不长期保存中间产物: 至少 2 TB 可用空间
+推荐稳定训练: 4 TB 可用空间
+完整缓存 + 多 checkpoint: 6-8 TB 可用空间
+```
+
+搬运时间粗估：
+
+```text
+1 Gbps 网络:
+  1 TB 约 2.5-3.5 小时理论值，实际常见 4-8 小时
+  2.5 TB 常见 10-20 小时
+
+10 Gbps 网络:
+  1 TB 常见 0.5-1.5 小时
+  2.5 TB 常见 1.5-4 小时
+
+普通机械硬盘或共享文件系统会显著拖慢，实际以 rsync/sha256 校验速度为准。
+```
+
+最终建议：优先准备 **1.5-2.5 TB 推荐搬运包**。这样训练服务器不需要重新做完整预处理，同时不会把所有临时缓存和动态样本都搬过去。
 
 ## 14. 下一步执行顺序
 
