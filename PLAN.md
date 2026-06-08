@@ -1,6 +1,6 @@
 # DoukeGenome 豆科结构注释驱动基因组预训练大模型正式训练方案
 
-更新时间：2026-06-08 10:22:28 CST
+更新时间：2026-06-08 10:39:24 CST
 
 ## 1. 项目目标
 
@@ -274,13 +274,13 @@ UTR:
 
 promoter/TSS:
   TSS upstream 0-5 kb 保留 100%。
-  TSS upstream 5-20 kb 保留 30% 高质量代表窗口。
+  TSS upstream 5-20 kb 保留 15% 高质量代表窗口。
   若无可靠 TSS，只使用 gene upstream 2 kb 作为弱 promoter 标签。
 
 intron:
   exon-intron boundary 两侧 2 kb 保留 100%。
-  普通 intron 内部保留 20%。
-  >20 kb 的长 intron 内部保留 10%，优先保留 GC/复杂度正常、N <= 2% 的窗口。
+  普通 intron 内部保留 10%。
+  >20 kb 的长 intron 内部保留 5%，优先保留 GC/复杂度正常、N <= 2% 的窗口。
 
 TE/repeat:
   有 repeat 注释的 TE/repeat interval 保留 50%。
@@ -289,15 +289,15 @@ TE/repeat:
   无 repeat 注释 genome 不把 intergenic 伪标为 non-repeat。
 
 gene-proximal intergenic:
-  距任意 gene 20 kb 内的 intergenic 保留 20%。
+  距任意 gene 20 kb 内的 intergenic 保留 10%。
   优先保留 N <= 2%、低复杂度未标记、长度覆盖完整的窗口。
 
 distal intergenic / far noncoding:
-  只保留 10% 高质量窗口。
+  只保留 3%-5% 高质量窗口。
   条件: N <= 2%，无长 N，非低复杂度，非高度重复，GC 在本 genome 的 5%-95% 分位范围内。
 
 random genome coverage:
-  从通过 hard filter 的全基因组窗口中额外保留 3%-5%，用于避免模型完全失去背景序列分布。
+  从通过 hard filter 的全基因组窗口中额外保留 1%-2%，用于避免模型完全失去背景序列分布。
 ```
 
 #### 4.5.3 去冗余和代表性控制
@@ -308,8 +308,8 @@ random genome coverage:
 1. 同一 assembly 内高度相似窗口按 minimizer/simhash 去冗余。
 2. 对普通 intergenic 和 repeat-rich 背景，若窗口相似度 >= 95%，只保留 1 个代表。
 3. 对 CDS、splice、start/stop 不做相似性丢弃，只做质量过滤。
-4. 每个 assembly 的 distal intergenic token 占比不超过该 assembly 训练 token 的 10%。
-5. 每个属的 ordinary intergenic token 占比不超过该属训练 token 的 15%。
+4. 每个 assembly 的 distal intergenic token 占比不超过该 assembly 训练 token 的 5%。
+5. 每个属的 ordinary intergenic token 占比不超过该属训练 token 的 10%。
 ```
 
 #### 4.5.4 预计过滤后规模
@@ -320,22 +320,23 @@ random genome coverage:
 
 ```text
 核心功能区域和边界窗口: 约 25-40 Gb sequence-equivalent
-intron 抽样窗口: 约 20-40 Gb
+intron 抽样窗口: 约 10-25 Gb
 TE/repeat 抽样窗口: 约 20-40 Gb
-gene-proximal intergenic: 约 10-20 Gb
-distal intergenic 10% 高质量子集: 约 10-20 Gb
-random genome coverage: 约 5-15 Gb
+gene-proximal intergenic: 约 5-12 Gb
+distal intergenic 3%-5% 高质量子集: 约 3-8 Gb
+random genome coverage: 约 2-6 Gb
 ```
 
 最终建议物化训练候选 shard：
 
 ```text
-sequence-equivalent: 90-160 Gb
-考虑多尺度索引、标签、metadata 和 shard 开销: 300-700 GB
-若只保存 compact sequence store + window index: 180-420 GB
+sequence-equivalent: 65-115 Gb
+考虑多尺度索引、标签、metadata 和 shard 开销: 180-450 GB
+若只保存 compact sequence store + window index: 120-280 GB
 ```
 
 结论：正式训练不应全量输入所有非编码区；远端非编码区只保留约 10% 高质量代表窗口，功能区域和结构边界高保留。
+当前极简压缩方案下，远端非编码区只保留 3%-5%，random genome coverage 只保留 1%-2%。
 
 ## 5. 数据切分和泄漏控制
 
@@ -468,8 +469,8 @@ promoter/TSS upstream windows: 15%
 UTR and transcript boundary windows: 10%
 intron windows: 10%
 TE/repeat windows: 15%
-intergenic background windows: 7%
-random genome coverage windows: 3%
+intergenic background windows: 5%
+random genome coverage windows: 2%
 ```
 
 如果某个基因组缺少 TE/repeat 注释，则 TE/repeat 配额只从有 repeat 注释的 47 个基因组中采样；缺失 repeat 注释的基因组不把 intergenic 区域伪标为 non-repeat。
@@ -482,6 +483,7 @@ TE/repeat token 占比最高不超过 20%。
 单个 repeat-annotated assembly 不超过 TE/repeat token 的 20%。
 TE 相似窗口按 >=95% 相似度去冗余，避免简单重复序列过度训练。
 TE 边界、gene-proximal TE、promoter-proximal TE 优先级高于 TE 内部普通窗口。
+TE/repeat 训练时优先存 interval index，不预先物化全部 TE shard；训练时在线取片段。
 ```
 
 loss 权重：
@@ -734,8 +736,8 @@ promoter/TSS upstream windows: 15%
 UTR and transcript boundary windows: 10%
 intron windows: 10%
 TE/repeat windows: 15%
-intergenic background windows: 7%
-random genome coverage windows: 3%
+intergenic background windows: 5%
+random genome coverage windows: 2%
 ```
 
 每个 batch 同时满足：
@@ -1086,12 +1088,12 @@ CPU: 32 cores
 
 如果在本服务器完成数据处理，再把处理好的数据搬到其他服务器训练，建议不要搬运所有中间缓存。正式推荐是搬运“compact sequence store + annotation interval index + split table + filtered window index + 必要训练 shard”，mask、RC 输入、next-window pair 和多数 loss mask 在训练时在线生成。
 
-当前正式训练集为 251 个结构注释 genome，总长度约 300.5 Gb。第 4.5 节过滤并加大 TE/repeat 比例后，实际物化训练候选预计为 90-160 Gb sequence-equivalent，而不是全量 300.5 Gb。
+当前正式训练集为 251 个结构注释 genome，总长度约 300.5 Gb。第 4.5 节极简过滤后，实际物化训练候选预计为 65-115 Gb sequence-equivalent，而不是全量 300.5 Gb。
 
 三档估算：
 
 ```text
-compact 最低可训练搬运包: 0.5-0.9 TB
+极简 compact 可训练搬运包: 0.25-0.50 TB
   内容:
     compact 2-bit/uint8 sequence store
     .fai / checksum / sequence length index
@@ -1106,10 +1108,11 @@ compact 最低可训练搬运包: 0.5-0.9 TB
   适用:
     训练服务器 CPU 和 IO 足够，追求搬运体积最小
 
-推荐搬运包: 0.8-1.4 TB
+推荐 compact 搬运包: 0.40-0.70 TB
   内容:
-    compact 最低可训练搬运包
-    8 kb / 32 kb / 64 kb 过滤后主力窗口 shard
+    极简 compact 可训练搬运包
+    少量 validation/test 固定 shard
+    可选 8 kb / 32 kb 核心功能区域 shard
     validation/test 固定窗口 shard
     区域加权采样索引
   特点:
@@ -1118,12 +1121,12 @@ compact 最低可训练搬运包: 0.5-0.9 TB
   适用:
     推荐方案
 
-完整过滤后 shard 搬运包: 1.2-2.2 TB
+带少量固定 shard 搬运包: 0.50-0.90 TB
   内容:
     compact sequence store
-    过滤后的所有多尺度窗口 shard: 8 kb / 32 kb / 64 kb / 128 kb
-    结构注释 labels
     validation/test 固定 shard
+    部分 8 kb / 32 kb 核心功能区域 shard
+    结构注释 labels
     filtered interval cache
     QC 报告和统计表
   特点:
@@ -1147,9 +1150,9 @@ compact 最低可训练搬运包: 0.5-0.9 TB
 训练服务器建议预留：
 
 ```text
-只训练不长期保存中间产物: 至少 2 TB 可用空间
-推荐稳定训练: 3-4 TB 可用空间
-完整过滤后 shard + 多 checkpoint: 5-7 TB 可用空间
+只训练不长期保存中间产物: 至少 1 TB 可用空间
+推荐稳定训练: 1.5-2 TB 可用空间
+带少量固定 shard + 多 checkpoint: 2-3 TB 可用空间
 ```
 
 搬运时间粗估：
@@ -1157,16 +1160,16 @@ compact 最低可训练搬运包: 0.5-0.9 TB
 ```text
 1 Gbps 网络:
   1 TB 约 2.5-3.5 小时理论值，实际常见 4-8 小时
-  2.2 TB 常见 10-18 小时
+  0.9 TB 常见 4-8 小时
 
 10 Gbps 网络:
   1 TB 常见 0.5-1.5 小时
-  2.2 TB 常见 1.5-4 小时
+  0.9 TB 常见 0.5-1.5 小时
 
 普通机械硬盘或共享文件系统会显著拖慢，实际以 rsync/sha256 校验速度为准。
 ```
 
-最终建议：优先准备 **0.8-1.4 TB 推荐搬运包**。这样训练服务器不需要重新做完整预处理，同时不会把所有临时缓存和动态样本都搬过去。
+最终建议：优先准备 **0.40-0.70 TB 推荐 compact 搬运包**。这样训练服务器不需要重新做完整预处理，同时不会把所有临时缓存、动态样本和大体积 shard 都搬过去。
 
 ## 14. 下一步执行顺序
 

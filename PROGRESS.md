@@ -67,6 +67,14 @@
 - 为控制重复序列过拟合，保留 TE 相似窗口 >=95% 去冗余，并限制单个 repeat-annotated assembly 不超过 TE/repeat token 的 20%。
 - 更新过滤后搬运空间估算：compact 最低包约 0.5-0.9 TB，推荐搬运包约 0.8-1.4 TB，完整过滤后 shard 包约 1.2-2.2 TB；训练服务器推荐预留 3-4 TB，完整缓存和多 checkpoint 场景 5-7 TB。
 
+## 2026-06-08 10:39:24 CST
+
+- 按用户确认的极简压缩策略更新训练计划：CDS、splice、start/stop、UTR 和 promoter 0-5 kb 保留 100%；promoter 5-20 kb 保留 15%；普通 intron 保留 10%；长 intron 保留 5%；gene-proximal intergenic 保留 10%；distal intergenic 保留 3%-5%；random genome coverage 保留 1%-2%。
+- 保留 TE/repeat batch 目标比例 15%，但改为优先只存 TE interval index，训练时在线取片段，避免预先物化大体积 TE shard。
+- 更新过滤后规模估算：sequence-equivalent 约 65-115 Gb；多尺度索引和标签开销后约 180-450 GB；compact sequence store + window index 约 120-280 GB。
+- 更新跨服务器搬运估算：极简 compact 可训练包约 0.25-0.50 TB，推荐 compact 搬运包约 0.40-0.70 TB，带少量固定 shard 搬运包约 0.50-0.90 TB。
+- 更新训练服务器磁盘建议：最低 1 TB，稳定训练 1.5-2 TB，多 checkpoint 场景 2-3 TB。
+
 ## 后续阶段
 
 - 2026-06-08 之后：生成 structural-annotation-only 训练样本清单。
