@@ -161,6 +161,14 @@
 - 明确 mask、reverse-complement、span corruption、dropout 和 next-window pair 仍在训练时动态生成，不实体化存储，避免磁盘膨胀。
 - 更新跨服务器搬运空间估算：当前阶段滚动搬运至少 `1.5-2 TB`，同时保留两阶段 `2-4 TB`，全阶段 shard 加多 checkpoint 建议 `4-6 TB`。
 
+## 2026-06-09 17:31:23 CST
+
+- 开始执行模型训练前数据工程收尾：构建 `data/legumegenomefm_transfer/` 分阶段训练搬运包。
+- 已生成本地脚本，用最终 `indexes_parallel/filtered_windows.tsv` 生成 Stage 1A/1B/1C 的窗口清单，并进一步构建可直接训练的 uint8 stage shard。
+- 已提交快速窗口采样作业 `job_id=8485395`，当前在 `cu12` 运行；它将生成 `01_stage1a_32kb/windows.tsv`、`02_stage1b_64kb/windows.tsv` 和 `03_stage1c_128kb/windows.tsv`。
+- 已提交依赖 shard 构建作业 `job_id=8489331`，等待 `8485395` 成功后依次构建三个阶段的 train/validation/test shard。
+- 清理旧无用中间数据：删除旧串行索引目录 `data/compact_douke_v1/indexes/` 和并行 part 中间目录 `data/compact_douke_v1/indexes_parallel/parts/`，释放约 `65G`；保留最终 merged 索引、源 genome/annotation 和 transfer 包。
+
 ## 后续阶段
 
 - 2026-06-09 之后：基于 `indexes_parallel/filtered_windows.tsv` 生成 `legumegenomefm_transfer/` 分阶段搬运包。
