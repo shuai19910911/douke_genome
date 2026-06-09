@@ -169,6 +169,14 @@
 - 已提交依赖 shard 构建作业 `job_id=8489331`，等待 `8485395` 成功后依次构建三个阶段的 train/validation/test shard。
 - 清理旧无用中间数据：删除旧串行索引目录 `data/compact_douke_v1/indexes/` 和并行 part 中间目录 `data/compact_douke_v1/indexes_parallel/parts/`，释放约 `65G`；保留最终 merged 索引、源 genome/annotation 和 transfer 包。
 
+## 2026-06-09 17:50:00 CST
+
+- 快速窗口采样作业 `job_id=8485395` 已完成，退出码 `0:0`。
+- 采样得到的窗口清单：Stage 1A 包含 8 kb `1,352,670`、32 kb `1,181,857`、64 kb `85,182`；Stage 1B 包含 8 kb `619,948`、32 kb `304,338`、64 kb `542,279`；Stage 1C 包含 8 kb `194,203`、32 kb `176,974`、64 kb `93,210`、128 kb `173,046`。
+- 原串行 Stage shard 构建作业 `job_id=8489331` 因窗口清单中的 NUL 字节触发 CSV 解析错误，已停止使用；本地脚本已加入 NUL 容错。
+- 为减少重复解压 genome FASTA，改为单 pass all-stage shard 构建：每个 genome 只读取一次，同时写 Stage 1A/1B/1C 的 train/validation/test shard。
+- 已删除之前 Stage 1A 半成品 shard，重新提交 all-stage 构建作业 `job_id=8489347`，当前在 `cu58` 运行。
+
 ## 后续阶段
 
 - 2026-06-09 之后：基于 `indexes_parallel/filtered_windows.tsv` 生成 `legumegenomefm_transfer/` 分阶段搬运包。
