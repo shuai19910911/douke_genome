@@ -142,9 +142,18 @@
 - 取消旧串行 compact 索引作业 `job_id=8462433`，该作业已被并行分片流程替代，继续运行会浪费计算节点资源。
 - 当前队列只保留正式并行索引和自动合并依赖作业。
 
+## 2026-06-09 15:53:19 CST
+
+- 并行 compact 索引流程已完成，最终合并作业 `job_id=8470464` 在 `cu59` 成功完成，退出码 `0:0`。
+- 251 个 genome 分片全部合并成功：`sequence_parts=251`，`window_parts=251`。
+- 最终 compact 训练索引位于 `data/compact_douke_v1/indexes_parallel/`；`filtered_windows.tsv` 约 `63G`，`sequence_index.tsv` 约 `57M`，`region_sampling_weights.tsv` 已生成。
+- 最终统计：`sequence_rows=964,198`，`window_rows=802,272,042`。
+- 按窗口长度统计：8 kb `221,605,555`，32 kb `203,818,407`，64 kb `193,139,777`，128 kb `183,708,303`。
+- 按 split 统计：train `628,691,695`，validation `105,225,279`，test `68,355,068`。
+- 原先 16 个失败分片已修复并重跑成功；失败原因是部分注释文件含非 UTF-8 字节以及部分 FASTA 存在空 header，已在本地预处理脚本中增加容错。
+
 ## 后续阶段
 
-- 2026-06-08 之后：等待优化后的并行 compact 索引作业 `job_id=8462868` 和合并作业 `job_id=8462872` 完成，核对 `indexes_parallel/sequence_index.tsv`、`indexes_parallel/filtered_windows.tsv` 和 `indexes_parallel/region_sampling_weights.tsv`。
-- 2026-06-08 之后：生成 leakage-safe split table，保证 duplicate group、assembly、interval、gene 不跨 split。
-- 2026-06-08 之后：准备 LegumeGenomeFM-330M 训练配置。
-- 2026-06-08 之后：启动正式结构注释驱动预训练并记录 loss、mask accuracy、region F1、splice AUPRC、RC consistency 和下游验证指标。
+- 2026-06-09 之后：基于 `indexes_parallel/filtered_windows.tsv` 准备 LegumeGenomeFM-330M 的 Stage 1A/1B/1C 训练 sampler 配置。
+- 2026-06-09 之后：生成训练前 QC 报告，重点核对窗口长度、region、split、genus 和 assembly 覆盖分布。
+- 2026-06-09 之后：启动正式结构注释驱动预训练并记录 loss、mask accuracy、region F1、splice AUPRC、RC consistency 和下游验证指标。
