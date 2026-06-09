@@ -152,8 +152,17 @@
 - 按 split 统计：train `628,691,695`，validation `105,225,279`，test `68,355,068`。
 - 原先 16 个失败分片已修复并重跑成功；失败原因是部分注释文件含非 UTF-8 字节以及部分 FASTA 存在空 header，已在本地预处理脚本中增加容错。
 
+## 2026-06-09 17:00:33 CST
+
+- 根据训练 IO 风险重新优化正式计划：不再把训练时从 genome FASTA 在线随机切片作为主输入路径。
+- 正式改为“本服务器预处理好所有阶段数据，训练服务器分阶段搬运”的方案。
+- 新增简洁搬运根目录 `legumegenomefm_transfer/`，只保留 `00_common/`、`01_stage1a_32kb/`、`02_stage1b_64kb/`、`03_stage1c_128kb/`、`04_eval/` 和 `README_TRANSFER.md`。
+- 明确 Stage 1A/1B/1C 主训练输入为预生成 stage shard；genome FASTA 和完整索引只作为溯源、QC、失败 shard 重建和少量补样。
+- 明确 mask、reverse-complement、span corruption、dropout 和 next-window pair 仍在训练时动态生成，不实体化存储，避免磁盘膨胀。
+- 更新跨服务器搬运空间估算：当前阶段滚动搬运至少 `1.5-2 TB`，同时保留两阶段 `2-4 TB`，全阶段 shard 加多 checkpoint 建议 `4-6 TB`。
+
 ## 后续阶段
 
-- 2026-06-09 之后：基于 `indexes_parallel/filtered_windows.tsv` 准备 LegumeGenomeFM-330M 的 Stage 1A/1B/1C 训练 sampler 配置。
+- 2026-06-09 之后：基于 `indexes_parallel/filtered_windows.tsv` 生成 `legumegenomefm_transfer/` 分阶段搬运包。
 - 2026-06-09 之后：生成训练前 QC 报告，重点核对窗口长度、region、split、genus 和 assembly 覆盖分布。
 - 2026-06-09 之后：启动正式结构注释驱动预训练并记录 loss、mask accuracy、region F1、splice AUPRC、RC consistency 和下游验证指标。

@@ -495,7 +495,7 @@ TE/repeat token 占比最高不超过 20%。
 单个 repeat-annotated assembly 不超过 TE/repeat token 的 20%。
 TE 相似窗口按 >=95% 相似度去冗余，避免简单重复序列过度训练。
 TE 边界、gene-proximal TE、promoter-proximal TE 优先级高于 TE 内部普通窗口。
-TE/repeat 训练时优先存 interval index，不预先物化全部 TE shard；训练时在线取片段。
+TE/repeat 保留 interval index 用于溯源和重建；正式训练输入按 Stage 1A/1B/1C 预生成 TE/repeat shard，不把训练时在线取片段作为主路径。
 ```
 
 loss 权重：
@@ -875,12 +875,29 @@ Stage 1 total: 120B-135B tokens，目标值仍按 130B tokens 执行
 采样和 batch 组织：
 
 ```text
-1. 先抽 context_bucket: 8 kb / 32 kb / 64 kb / 128 kb。
-2. 再在该长度内抽 region_bucket: CDS / splice / UTR / promoter / intron / TE / intergenic / random genome。
-3. 每个 micro-batch 内只放同一长度，减少 padding 和显存波动。
-4. 不同长度在 gradient accumulation 层面混合。
-5. 每个 context bucket 内继续使用区域权重，避免长窗口被 intergenic 背景稀释。
-6. 训练日志必须分别记录 loss_8kb、loss_32kb、loss_64kb、loss_128kb。
+1. 训练主输入使用分阶段预生成 shard，不以训练时随机访问 genome FASTA 作为主路径。
+2. 每个 stage 预先生成该阶段所需的 8 kb / 32 kb / 64 kb / 128 kb 窗口 shard。
+3. shard 内保存固定窗口序列或 token ids、坐标、region、weight、split 和校验信息。
+4. mask、reverse-complement、dropout、span corruption 和 next-window pair 仍在训练时动态生成，不实体化存储。
+5. sampler 先抽 context_bucket，再抽 region_bucket；比例按 token 数控制，不按 batch 数控制。
+6. 每个 micro-batch 内只放同一长度，减少 padding 和显存波动。
+7. 不同长度在 gradient accumulation 层面混合。
+8. 每个 context bucket 内继续使用区域权重，避免长窗口被 intergenic 背景稀释。
+9. 训练日志必须分别记录 loss_8kb、loss_32kb、loss_64kb、loss_128kb。
+```
+
+训练输入来源：
+
+```text
+主路径:
+  stage shard -> dataloader -> dynamic mask/RC/token augmentation -> model
+
+备用路径:
+  genome FASTA + filtered_windows.tsv 只用于溯源、QC、失败 shard 重建和少量在线补样。
+
+不采用:
+  训练期间所有样本都实时从 genome FASTA 随机切片。
+  全量实体化 802,272,042 个窗口的所有动态增强版本。
 ```
 
 进入下一阶段条件：
@@ -1187,56 +1204,151 @@ CPU: 32 cores
 不通过降低到非正式小模型来解决吞吐问题。
 ```
 
-### 13.1 跨服务器搬运所需磁盘空间
+### 13.1 跨服务器分阶段搬运包
 
-如果在本服务器完成数据处理，再把处理好的数据搬到其他服务器训练，建议不要搬运所有中间缓存。正式推荐是搬运“compact sequence store + annotation interval index + split table + filtered window index + 必要训练 shard”，mask、RC 输入、next-window pair 和多数 loss mask 在训练时在线生成。
+正式改为“本服务器预处理好所有阶段数据，训练服务器按阶段搬运”。训练服务器主输入为预生成 stage shard，避免训练时大量随机访问 genome FASTA 拖慢 GPU。
 
-当前正式训练集为 251 个结构注释 genome，总长度约 300.5 Gb。第 4.5 节极简过滤后，实际物化训练候选预计为 65-115 Gb sequence-equivalent，而不是全量 300.5 Gb。
-
-三档估算：
+当前已完成基础索引：
 
 ```text
-极简 compact 可训练搬运包: 0.25-0.50 TB
-  内容:
-    compact 2-bit/uint8 sequence store
-    .fai / checksum / sequence length index
-    structural annotation interval index
-    train/validation/test split table
-    filtered window index
-    region sampling table
-    genus/assembly metadata
-  特点:
-    不搬完整预生成窗口 shard
-    训练服务器在线随机取窗口、在线 mask、在线生成 RC 和 next-window pair
-  适用:
-    训练服务器 CPU 和 IO 足够，追求搬运体积最小
+filtered_windows.tsv: 802,272,042 windows, 约 63G
+sequence_index.tsv: 964,198 sequences, 约 57M
+region_sampling_weights.tsv: 已生成
+```
 
-推荐 compact 搬运包: 0.40-0.70 TB
-  内容:
-    极简 compact 可训练搬运包
-    少量 validation/test 固定 shard
-    可选 8 kb / 32 kb 核心功能区域 shard
-    validation/test 固定窗口 shard
-    区域加权采样索引
-  特点:
-    训练启动快，复现实验方便
-    128 kb 可在训练服务器在线生成或单独补充
-  适用:
-    推荐方案
+搬运根目录保持简洁，统一为：
 
-带少量固定 shard 搬运包: 0.50-0.90 TB
-  内容:
-    compact sequence store
-    validation/test 固定 shard
-    部分 8 kb / 32 kb 核心功能区域 shard
-    结构注释 labels
-    filtered interval cache
-    QC 报告和统计表
-  特点:
-    最省训练服务器预处理时间
-    搬运时间和目标服务器磁盘压力最大
-  适用:
-    目标服务器 IO 较弱，或需要完全复现本服务器处理结果
+```text
+legumegenomefm_transfer/
+  00_common/
+  01_stage1a_32kb/
+  02_stage1b_64kb/
+  03_stage1c_128kb/
+  04_eval/
+  README_TRANSFER.md
+```
+
+目录内容：
+
+```text
+00_common/
+  manifests/
+    compact_manifest.tsv
+    split.tsv
+    selected_files.tsv
+  indexes/
+    filtered_windows.tsv
+    sequence_index.tsv
+    region_sampling_weights.tsv
+  metadata/
+    genus_assembly_summary.tsv
+    checksums.sha256
+  reference/
+    genomes/              # 可选；用于溯源、QC、失败 shard 重建，不作为主训练输入
+    annotations/          # 可选；用于下游和审计
+
+01_stage1a_32kb/
+  train/
+    shards/
+    manifest.tsv
+  validation/
+    shards/
+    manifest.tsv
+  test/
+    shards/
+    manifest.tsv
+  stage_config.yaml
+  qc_summary.tsv
+
+02_stage1b_64kb/
+  train/
+    shards/
+    manifest.tsv
+  validation/
+    shards/
+    manifest.tsv
+  test/
+    shards/
+    manifest.tsv
+  stage_config.yaml
+  qc_summary.tsv
+
+03_stage1c_128kb/
+  train/
+    shards/
+    manifest.tsv
+  validation/
+    shards/
+    manifest.tsv
+  test/
+    shards/
+    manifest.tsv
+  stage_config.yaml
+  qc_summary.tsv
+
+04_eval/
+  fixed_probe_shards/
+  downstream_splits/
+  baseline_inputs/
+  qc_reports/
+```
+
+每个 stage shard 的内容：
+
+```text
+必选:
+  input sequence 或 token ids
+  compact_id / seq_id / start / end / strand
+  window_size
+  region
+  sample_weight
+  split
+  n_pct / gc_pct
+  source checksum
+
+训练时动态生成:
+  mlm_mask
+  masked labels
+  reverse-complement view
+  span corruption
+  next-window pair
+  dropout/noise augmentation
+```
+
+分阶段搬运策略：
+
+```text
+先搬:
+  00_common/
+  01_stage1a_32kb/
+
+Stage 1A 训练稳定后再搬:
+  02_stage1b_64kb/
+
+Stage 1B 达到进入条件后再搬:
+  03_stage1c_128kb/
+
+评估或论文实验前搬:
+  04_eval/
+```
+
+空间估算：
+
+```text
+00_common: 0.10-0.30 TB
+01_stage1a_32kb: 0.30-0.80 TB
+02_stage1b_64kb: 0.40-1.00 TB
+03_stage1c_128kb: 0.40-1.20 TB
+04_eval: 0.05-0.20 TB
+
+单阶段搬运常用量:
+  Stage 1A 首次搬运: 0.40-1.10 TB
+  Stage 1B 追加搬运: 0.40-1.00 TB
+  Stage 1C 追加搬运: 0.40-1.20 TB
+
+全阶段都搬到训练服务器:
+  推荐预留 2-4 TB
+  多 checkpoint 和临时缓存场景预留 4-6 TB
 ```
 
 不建议搬运：
@@ -1253,9 +1365,9 @@ CPU: 32 cores
 训练服务器建议预留：
 
 ```text
-只训练不长期保存中间产物: 至少 1 TB 可用空间
-推荐稳定训练: 1.5-2 TB 可用空间
-带少量固定 shard + 多 checkpoint: 2-3 TB 可用空间
+只搬当前阶段并滚动删除旧 stage: 至少 1.5-2 TB 可用空间
+同时保留 00_common + 两个训练阶段: 2-4 TB 可用空间
+同时保留全阶段 shard + 多 checkpoint: 4-6 TB 可用空间
 ```
 
 搬运时间粗估：
@@ -1272,7 +1384,7 @@ CPU: 32 cores
 普通机械硬盘或共享文件系统会显著拖慢，实际以 rsync/sha256 校验速度为准。
 ```
 
-最终建议：优先准备 **0.40-0.70 TB 推荐 compact 搬运包**。这样训练服务器不需要重新做完整预处理，同时不会把所有临时缓存、动态样本和大体积 shard 都搬过去。
+最终建议：准备 **分阶段可搬运训练包**，不再只依赖极简 compact 在线取序列。训练服务器按阶段接收 `00_common + 当前 stage`，用预生成 shard 直接训练；genome FASTA 和完整索引作为溯源、QC、补样和重建使用。
 
 ## 14. 下一步执行顺序
 
@@ -1283,9 +1395,11 @@ CPU: 32 cores
 4. 将 N 阈值从 20% 改为正式 5%，最多训练救援到 10%。
 5. 生成输入片段过滤索引：CDS/splice/start-stop/UTR/promoter 高保留，普通 intron/intergenic/TE 按比例抽样。
 6. 生成区域权重表：CDS、splice、promoter、UTR、intron、repeat、intergenic。
-7. 生成过滤后的 8 kb/32 kb/64 kb/128 kb 多尺度 shards，或 compact sequence store + window index。
-8. 实现 region-weighted + genus-balanced streaming dataloader。
-9. 准备 LegumeGenomeFM-330M 训练配置。
-10. 启动 Stage 1 结构注释驱动预训练。
-11. 完成 Stage 2 下游任务微调和基线系统评估。
+7. 以 `indexes_parallel/filtered_windows.tsv` 为源，生成全部阶段的预处理 shard。
+8. 构建简洁分阶段搬运目录 `legumegenomefm_transfer/`。
+9. 生成 `01_stage1a_32kb/`、`02_stage1b_64kb/`、`03_stage1c_128kb/` 和 `04_eval/` 的 manifest、checksum 和 QC。
+10. 实现读取 stage shard 的 region-weighted + genus-balanced dataloader。
+11. 准备 LegumeGenomeFM-330M 训练配置。
+12. 分阶段搬运到训练服务器并启动 Stage 1A/1B/1C 结构注释驱动预训练。
+13. 完成 Stage 2 下游任务微调和基线系统评估。
 ```
