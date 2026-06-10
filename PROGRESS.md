@@ -177,8 +177,18 @@
 - 为减少重复解压 genome FASTA，改为单 pass all-stage shard 构建：每个 genome 只读取一次，同时写 Stage 1A/1B/1C 的 train/validation/test shard。
 - 已删除之前 Stage 1A 半成品 shard，重新提交 all-stage 构建作业 `job_id=8489347`，当前在 `cu58` 运行。
 
+## 2026-06-10 08:08:16 CST
+
+- all-stage shard 构建作业 `job_id=8489347` 已完成，节点 `cu58`，总耗时 `04:47:21`，退出码 `0:0`，峰值内存约 `11.2G`。
+- 分阶段训练搬运包 `data/legumegenomefm_transfer/` 已生成完成；主要目录大小：`00_common` 约 `63G`，Stage 1A 约 `53G`，Stage 1B 约 `48G`，Stage 1C 约 `34G`。
+- 三个阶段均已生成 `manifest.tsv` 和 `qc_summary.tsv`，可作为训练服务器分阶段搬运输入。
+- Stage 1A 已编码窗口 `2,622,930`；train/validation/test shard 分别约 `43.4G`、`7.2G`、`4.8G`。
+- Stage 1B 已编码窗口 `1,467,888`；train/validation/test shard 分别约 `39.7G`、`6.7G`、`4.3G`。
+- Stage 1C 已编码窗口 `637,449`；train/validation/test shard 分别约 `28.3G`、`4.9G`、`3.0G`。
+- 当前训练主输入已从在线 genome 切片转为预生成 uint8 stage shard；训练时仍动态生成 mask、reverse-complement view、span corruption 和 next-window pair。
+
 ## 后续阶段
 
-- 2026-06-09 之后：基于 `indexes_parallel/filtered_windows.tsv` 生成 `legumegenomefm_transfer/` 分阶段搬运包。
-- 2026-06-09 之后：生成训练前 QC 报告，重点核对窗口长度、region、split、genus 和 assembly 覆盖分布。
-- 2026-06-09 之后：启动正式结构注释驱动预训练并记录 loss、mask accuracy、region F1、splice AUPRC、RC consistency 和下游验证指标。
+- 2026-06-10 之后：补充训练前 QC 报告，重点核对窗口长度、region、split、genus 和 assembly 覆盖分布。
+- 2026-06-10 之后：将 `data/legumegenomefm_transfer/` 按 Stage 1A/1B/1C 分阶段搬运到训练服务器。
+- 2026-06-10 之后：启动正式结构注释驱动预训练并记录 loss、mask accuracy、region F1、splice AUPRC、RC consistency 和下游验证指标。
