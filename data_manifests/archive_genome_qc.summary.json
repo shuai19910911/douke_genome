@@ -1,0 +1,13 @@
+{
+  "candidate_count": 34,
+  "exact_duplicate_group_count": 0,
+  "exact_duplicate_member_count": 0,
+  "implementation_sha256": "4cc4ff748e4b2924e44b820232320762bcd28f178da5ce2117ff7619227b6920",
+  "manifest_sha256": "d9e4f65c736d4010ed3ac2c371e628e87d04012a0971a96df7d5efc3e2fc3d55",
+  "missing_count": 0,
+  "pass_count": 34,
+  "schema_version": "1.0",
+  "total_symbols_in_pass_records": 34376817912,
+  "unique_sequence_count": 34,
+  "unique_sequence_total_symbols": 34376817912
+}

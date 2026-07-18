@@ -1,0 +1,18 @@
+{
+  "candidate_count": 537,
+  "duplicate_gene_id_record_count": 23,
+  "exact_file_duplicate_group_count": 0,
+  "exact_file_duplicate_member_count": 0,
+  "fail_count": 0,
+  "implementation_sha256": "785022a1d20df5a831e9b0ff219de6d34b2c505e6405b2ca0813d7e1fd80ce88",
+  "invalid_coordinate_record_count": 6,
+  "malformed_record_count": 31,
+  "manifest_sha256": "b23c3a1201e867a8a83348135db2c0a6ee050aabe8e2981db2311745197528fa",
+  "missing_count": 0,
+  "paired_candidate_count": 537,
+  "pass_count": 537,
+  "primary_gene_model_pass_count": 264,
+  "primary_gene_model_without_genes_count": 4,
+  "schema_version": "1.0",
+  "total_gene_features_in_primary_models": 12856331
+}

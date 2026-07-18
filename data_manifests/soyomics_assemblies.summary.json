@@ -1,0 +1,17 @@
+{
+  "assembly_count": 27,
+  "manifest_sha256": "5798aede96998052000e9eb4bb990bd52890a19aecacd48cf0db7a22322c5763",
+  "material_type_counts": {
+    "Improved cultivar": 15,
+    "Landrace": 8,
+    "Soja": 3,
+    "semi-wild": 1
+  },
+  "schema_version": "1.0",
+  "source_publication_doi": "10.1016/j.molp.2023.03.011",
+  "source_url": "https://ngdc.cncb.ac.cn/soyomics/genome_assembly",
+  "species_counts": {
+    "Glycine max": 24,
+    "Glycine soja": 3
+  }
+}

@@ -7,6 +7,13 @@ results/
 logs/
 workspace/
 
+# Rebuildable per-file audit resume state (aggregated manifests remain tracked)
+data_manifests/fasta_qc_results/
+data_manifests/annotation_qc_results/
+data_manifests/archive_qc_results/
+data_manifests/archive_genome_qc_results/
+data_manifests/archive_genome_qc_smoke/
+
 # Local machine configuration and secrets
 *.local
 *.local.*

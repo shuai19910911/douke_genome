@@ -1,0 +1,19 @@
+{
+  "cuda_smoke": {
+    "capability": "7.5",
+    "device_class": "NVIDIA GeForce RTX 2080 Ti",
+    "finite_result": true,
+    "peak_allocated_mib": 20.12,
+    "selection_policy": "realtime_idle_device_gate"
+  },
+  "cuda_smoke_date": "2026-07-18",
+  "environment_name": "douke_genomemodel",
+  "installation_tool": "uv pip",
+  "numpy_version": "1.26.4",
+  "python_version": "3.10.20",
+  "pyyaml_version": "6.0.3",
+  "requirements_lock": "requirements.lock.txt",
+  "schema_version": "1.0",
+  "torch_compiled_cuda": "12.4",
+  "torch_version": "2.5.1+cu124"
+}

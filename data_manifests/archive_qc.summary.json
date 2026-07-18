@@ -1,0 +1,46 @@
+{
+  "archive_manifest_sha256": "d2e859a1a6cf38443d0f13cfa50e7cc1d97218f8d5782f92622477fc2be24a59",
+  "candidate_count": 201,
+  "counts_by_member_type": {
+    "annotation": 63,
+    "fasta": 130,
+    "other": 2,
+    "protein_fasta": 2
+  },
+  "crc_failure_archive_count": 0,
+  "encrypted_archive_count": 0,
+  "fail_count": 4,
+  "failures": [
+    {
+      "candidate_id": "5ce3abe2588e080a",
+      "error_message": "File is not a zip file",
+      "error_type": "BadZipFile",
+      "relative_path": "soyod/Chang_Chun_Man_Cang_Jin/genome/Chang_Chun_Man_Cang_Jin.genome.zip"
+    },
+    {
+      "candidate_id": "67d9353204d6f5b3",
+      "error_message": "File is not a zip file",
+      "error_type": "BadZipFile",
+      "relative_path": "soyod/Chang_Chun_Man_Cang_Jin/protein/Chang_Chun_Man_Cang_Jin.protein.zip"
+    },
+    {
+      "candidate_id": "31fed8ada1b84661",
+      "error_message": "File is not a zip file",
+      "error_type": "BadZipFile",
+      "relative_path": "soyod/Jin_Dou_23/genome/Jin_Dou_23.genome.zip"
+    },
+    {
+      "candidate_id": "341125d288d8d999",
+      "error_message": "File is not a zip file",
+      "error_type": "BadZipFile",
+      "relative_path": "soyod/Williams_82_T2T/gff/W82_T2T.annotation.zip"
+    }
+  ],
+  "implementation_sha256": "f712e512bab155230998602a4def6e580fd884f4298dd3c44a2603fcaab9040a",
+  "member_count": 197,
+  "member_manifest_sha256": "5565a52a9b41e2e30c5517729aecc85dd995a5495c586434746c1dc4d9e94780",
+  "pass_count": 197,
+  "reused_count": 0,
+  "schema_version": "1.0",
+  "unsafe_archive_count": 0
+}

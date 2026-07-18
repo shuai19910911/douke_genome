@@ -1,0 +1,17 @@
+{
+  "candidate_count": 552,
+  "duplicate_header_record_count": 0,
+  "empty_sequence_record_count": 0,
+  "exact_duplicate_group_count": 66,
+  "exact_duplicate_member_count": 137,
+  "fail_count": 2,
+  "implementation_sha256": "c638a52622a2427322d226ae6c5af5040de3e693915d19214c74851fef58d3f6",
+  "invalid_symbol_record_count": 0,
+  "manifest_sha256": "a236c3175528fba71e4c830d7d5dbcde3cb1ec8f5662e53b37150b0212ecabd4",
+  "missing_count": 0,
+  "pass_count": 550,
+  "schema_version": "1.0",
+  "total_symbols_in_pass_records": 609760149233,
+  "unique_sequence_count": 479,
+  "unique_sequence_total_symbols": 527173283543
+}

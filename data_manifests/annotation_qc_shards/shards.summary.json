@@ -1,0 +1,36 @@
+{
+  "candidate_count": 537,
+  "schema_version": "1.0",
+  "shard_count": 4,
+  "shards": [
+    {
+      "candidate_count": 125,
+      "compressed_bytes": 1473270729,
+      "path": "shard_00.tsv",
+      "sha256": "8a6d1b7d04a11410ed55d71c878c323ff075322d0a69ceb8b1b128e53b07a8e5",
+      "shard_id": 0
+    },
+    {
+      "candidate_count": 133,
+      "compressed_bytes": 1473270665,
+      "path": "shard_01.tsv",
+      "sha256": "7535c7b293fd1d051f358b47d45b6746f121bd479ee3d2aa59e672179cb9bf90",
+      "shard_id": 1
+    },
+    {
+      "candidate_count": 141,
+      "compressed_bytes": 1473270601,
+      "path": "shard_02.tsv",
+      "sha256": "3c70d4aa9fe001aa520dc49a0b5a3814bc01f2236969bc3a369affc300b09f2a",
+      "shard_id": 2
+    },
+    {
+      "candidate_count": 138,
+      "compressed_bytes": 1473270814,
+      "path": "shard_03.tsv",
+      "sha256": "1a0077beb68c667ac25ac35c9bc7d8a44705bbe3a2e89d6c4abe7c49a5f9f49a",
+      "shard_id": 3
+    }
+  ],
+  "total_compressed_bytes": 5893082809
+}

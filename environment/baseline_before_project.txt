@@ -1,0 +1,11 @@
+captured_date=2026-07-18
+python=3.10.20
+packaging=26.2
+pexpect=4.9.0
+ptyprocess=0.7.0
+pip=26.1.2
+setuptools=82.0.1
+wheel=0.47.0
+torch=NOT_INSTALLED
+cuda_runtime=NOT_INSTALLED
+status=baseline_before_legumegenomefm_dependencies

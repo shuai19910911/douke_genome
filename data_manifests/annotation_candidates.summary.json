@@ -1,0 +1,22 @@
+{
+  "candidate_count": 537,
+  "compressed_bytes": 5893082809,
+  "counts_by_role": {
+    "functional_iprscan": 112,
+    "gcv_genes": 4,
+    "gcv_genome": 4,
+    "gene_model_exons": 11,
+    "gene_models_main": 159,
+    "low_quality_gene_model": 4,
+    "ncbi_genomic": 75,
+    "noncoding": 61,
+    "other_annotation": 24,
+    "repeat": 53,
+    "soyomics_gene": 30
+  },
+  "paired_candidate_count": 537,
+  "primary_gene_model_count": 264,
+  "registry_sha256": "99f669cf6f3840daec9c087d34744fc19e00ee99b013bd0554833892194e435e",
+  "schema_version": "1.0",
+  "unpaired_candidate_count": 0
+}

@@ -1,6 +1,6 @@
 # LegumeGenomeFM Training Plan
 
-> 状态：系统文献核验已完成、全量FASTA内容审计运行中（2026-07-18）。正式架构、tokenizer（序列离散化方式）、上下文、多尺度配额、参数量、训练目标和优化器仍未冻结；本文不会把候选设想写成正式结论。
+> 状态：系统文献核验、Annotation、taxon metadata、普通FASTA、SoyOD ZIP/ZIP genome和2080 CUDA环境验收均已完成（2026-07-18）。统一来源、ZIP GFF、反向互补/近重复和泄漏审计仍未冻结；正式架构、tokenizer（序列离散化方式）、上下文、多尺度配额、参数量、训练目标和优化器继续保持未冻结。
 
 ## 1. 目标与核心科学问题
 
@@ -58,15 +58,20 @@ LegumeGenomeFM旨在从多物种豆科参考基因组学习可跨物种、跨属
 
 ## 4. 当前数据事实与审计计划
 
-已在原始数据根发现四个来源目录：`legume_family`、`legumeinfo`、`soyod`和`soyomics`。Phase 1通过SLURM核实3,841个目录项、3,427个普通文件、414个symlink和209,947,381,782 bytes（195.529 GiB）普通文件；文件名规则识别到1,289个FASTA与537个注释候选。严格限定为普通文件、`file_type=fasta`且处于`genome/`目录后，Phase 2注册552个组装候选、172,309,972,336 bytes（160.476 GiB压缩体量），确定性分成6个约26.746 GiB的shard。物种数、属数、总碱基数、重复率、注释基因数和可用token数仍待内容级审计完成后确认。
+已在原始数据根发现四个来源目录：`legume_family`、`legumeinfo`、`soyod`和`soyomics`。Phase 1通过SLURM核实3,841个目录项、3,427个普通文件、414个symlink和209,947,381,782 bytes（195.529 GiB）普通文件；文件名规则识别到1,289个FASTA、537个注释候选和201个ZIP。严格限定为普通文件、`file_type=fasta`且处于`genome/`目录后，Phase 2注册552个组装候选、172,309,972,336 bytes（160.476 GiB压缩体量），确定性分成6个约26.746 GiB的shard。201个SoyOD ZIP另含36个genome与38个GFF archive，不能在最终清单中遗漏。
+
+当前已核实552个普通组装候选覆盖141 species、69 genera，taxon 552/552有来源记录；SoyOmics 27个组装由官方API直接核实（24 `Glycine max`、3 `Glycine soja`）。普通FASTA为550 PASS、2个截断gzip FAIL；PASS source共609,760,149,233 symbols，精确内容去重后479个唯一序列、527,173,283,543 symbols。Annotation 537/537文件通过读取，537/537已有候选组装配套；264个主基因模型共12,856,331个gene feature。4个主模型无gene、31个文件含malformed line、6个含非法坐标、23个含重复gene ID，已保留逐文件标记。
+
+201个SoyOD ZIP中197个通过archive SHA-256与全部member CRC；4个压缩成员流真实截断，损失2个genome、1个protein和1个GFF。34个有效ZIP genome均通过内容审计，其中30个是普通来源的精确镜像，4个T2T为新增唯一序列。当前统一计算为584个PASS source、483个精确唯一序列、531,235,812,762个唯一symbols；这仍不是最终训练纳入量，因为材料多版本、反向互补和近重复尚未裁决。
 
 阶段化审计：
 
 1. Phase 1（已完成）：只读递归inventory（清单），记录相对路径、文件类型、大小、mtime、权限和不跟随的symlink（符号链接）；未在登录节点扫描序列内容。
-2. Phase 2（运行中，SLURM array `8600499_[0-5]`）：按assembly并行解析552个FASTA，统计长度、contig、N、GC、IUPAC字符、软掩码、N50、压缩文件SHA-256及忽略换行/大小写的序列内容SHA-256。真实smoke已正确检出1个截断gzip，并在另一组装上完成PASS与3秒resume复用验证。
-3. Phase 3：解析GFF/GTF/VCF，建立配套关系、基因/CDS/UTR计数、坐标合法性、序列ID覆盖、版本和许可证来源字段。
-4. Phase 4：精确序列与反向互补去重；MinHash/比对近重复审计；材料、组装版本、物种、属和低同源隔离。
-5. Phase 5：发布不可变数据manifest、split（划分）合同、checksum和可重建shard规范。
+2. Phase 2a（已完成）：552个普通FASTA均有PASS/FAIL终态，统计长度、contig、N、GC、IUPAC字符、软掩码、N50、压缩文件SHA-256及忽略换行/大小写的序列内容SHA-256；严格聚合无missing。
+3. Phase 2b（genome已完成）：201个SoyOD ZIP均计算archive SHA-256并全读member验证CRC、安全路径、加密与异常压缩比；34个有效ZIP genome以34-way array完成FASTA内容审计。37个有效ZIP GFF仍待内容审计。
+4. Phase 3（主体已完成）：537个普通GFF/GTF流式审计、assembly配套、基因/CDS/UTR计数、坐标合法性和taxon provenance已发布；FASTA header/length对GFF seqid覆盖仍是冻结门禁。
+5. Phase 4：精确序列与反向互补去重；MinHash/比对近重复审计；材料、组装版本、物种、属和低同源隔离。
+6. Phase 5：发布不可变数据manifest、split（划分）合同、checksum和可重建shard规范。
 
 正式纳入/排除阈值必须等待Phase 2–4真实分布后冻结。当前不预设contig长度、N比例、上下文或采样权重。
 
@@ -87,8 +92,8 @@ LegumeGenomeFM旨在从多物种豆科参考基因组学习可跨物种、跨属
 ## 8. 计算、迁移与图件
 
 - 登录节点仅做轻量检查、代码编辑、网络检索和SLURM控制。
-- CPU全量处理优先使用非`cu`节点；当前唯一非`cu`分区为`fat`，资源不足时按记录后的规则回退到`q03/q04/q02/q05`。
-- 当前GPU开发仅用RTX 2080 Ti；启动前核验显存、utilization（利用率）、compute进程和设备持有者。
+- 普通CPU/IO任务优先使用`q02–q05`并可按实时空闲资源超过6路并行；`fat`是稀缺大内存节点，除非实测内存超出普通节点且确认空闲，否则不占用。
+- 当前GPU开发仅用RTX 2080 Ti；启动前核验显存、utilization（利用率）、compute进程和设备持有者。正式环境PyTorch `2.5.1+cu124`已在动态空闲2080上完成FP16 CUDA smoke。
 - A100未获本阶段使用授权。
 - `figures/figure_manifest.tsv`记录图号、脚本、源数据和输出；无真实结果时不生成伪数据图。
 - AutoDL包必须提供锁定环境、manifest/checksum、自检、bootstrap、单/多卡启动和resume（恢复）命令。
@@ -100,7 +105,10 @@ LegumeGenomeFM旨在从多物种豆科参考基因组学习可跨物种、跨属
 ## 10. 当前可执行命令
 
 ```sh
-PYTHON_BIN=/path/to/python scripts/submit_raw_inventory.sh
+PYTHON_BIN=/path/to/python scripts/submit_fasta_qc.sh
+PYTHON_BIN=/path/to/python scripts/submit_annotation_qc.sh
+PYTHON_BIN=/path/to/python scripts/submit_zip_audit.sh
+PYTHON_BIN=/path/to/python scripts/submit_archive_genome_qc.sh
 ```
 
-资源：`fat`分区，2 CPU，8 GiB RAM，最长2小时，无GPU、无网络；只读扫描`DATA_ROOT`，输出相对路径manifest与SLURM日志。正式提交记录见`TRAINING_PROGRESS.md`。
+这些入口均只读访问`DATA_ROOT`，运行时注入portable路径并写入绝对SLURM日志位置；当前任务分别使用`q03/q04/q02`，均无GPU。正式提交记录见`TRAINING_PROGRESS.md`。
