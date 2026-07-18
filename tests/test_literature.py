@@ -11,6 +11,7 @@ from legumegenomefm.literature import (
     deduplicate_records,
     is_nature_portfolio,
     normalize_doi,
+    titles_equivalent,
     write_literature_manifest,
 )
 
@@ -18,6 +19,13 @@ from legumegenomefm.literature import (
 def test_normalize_doi_removes_resolver_and_prefix() -> None:
     assert normalize_doi("https://doi.org/10.1038/S41592-024-02523-Z") == "10.1038/s41592-024-02523-z"
     assert normalize_doi("doi: 10.1038/s41586-025-10014-0") == "10.1038/s41586-025-10014-0"
+
+
+def test_titles_equivalent_normalizes_markup_and_unicode_punctuation() -> None:
+    expected = "Nucleotide Transformer: building and evaluating robust foundation models"
+    actual = "<i>Nucleotide Transformer</i>: Building and evaluating robust foundation models"
+    assert titles_equivalent(expected, actual)
+    assert not titles_equivalent(expected, "A different genomic foundation model")
 
 
 def test_build_crossref_url_freezes_cutoff_and_fields() -> None:

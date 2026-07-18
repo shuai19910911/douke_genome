@@ -29,6 +29,16 @@
     {"id": "dnabert2", "query": "DNABERT-2 efficient foundation model multi-species genome"},
     {"id": "plantcaduceus", "query": "PlantCaduceus plant genome model"},
     {"id": "agront", "query": "AgroNT plant genome language model"},
-    {"id": "gpn_plants", "query": "genomic pretrained network GPN plants Arabidopsis"}
+    {"id": "gpn_plants", "query": "genomic pretrained network GPN plants Arabidopsis"},
+    {"id": "evo2_exact", "query": "Genome modelling and design across all domains of life with Evo 2"},
+    {"id": "agront_exact", "query": "A foundational large language model for edible plant genomes AgroNT"},
+    {"id": "plantcaduceus_exact", "query": "Cross-species modeling of plant genomes at single-nucleotide resolution PlantCaduceus"},
+    {"id": "gpn_exact", "query": "DNA language models are powerful predictors of genome-wide variant effects GPN"},
+    {"id": "species_aware_exact", "query": "Species-aware DNA language models capture regulatory elements and their evolution"},
+    {"id": "plantgfm_exact", "query": "PlantGFM genomic foundation model discovery creation plant genes"},
+    {"id": "maize_variant_exact", "query": "Large DNA and protein language models deleterious mutations maize"},
+    {"id": "hyenadna_exact", "query": "HyenaDNA long-range genomic sequence modeling single nucleotide"},
+    {"id": "caduceus_exact", "query": "Caduceus bidirectional equivariant long-range DNA sequence modeling"},
+    {"id": "dnabert2_exact", "query": "DNABERT-2 efficient foundation model multi-species genome"}
   ]
 }

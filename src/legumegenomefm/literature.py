@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import html
 import io
 import json
 import os
@@ -58,8 +59,13 @@ def normalize_doi(value: str | None) -> str:
 
 
 def normalize_title(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", value).casefold()
-    return re.sub(r"[^a-z0-9]+", " ", normalized).strip()
+    without_markup = re.sub(r"<[^>]+>", " ", html.unescape(value))
+    normalized = unicodedata.normalize("NFKC", without_markup).casefold()
+    return " ".join(re.findall(r"[\w]+", normalized))
+
+
+def titles_equivalent(expected: str, observed: str) -> bool:
+    return bool(expected and observed) and normalize_title(expected) == normalize_title(observed)
 
 
 def _first(values: object) -> str:

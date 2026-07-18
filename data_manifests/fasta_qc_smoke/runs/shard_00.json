@@ -1,0 +1,11 @@
+{
+  "candidate_count": 1,
+  "failed_count": 0,
+  "failures": [],
+  "implementation_sha256": "c638a52622a2427322d226ae6c5af5040de3e693915d19214c74851fef58d3f6",
+  "passed_count": 1,
+  "reused_count": 1,
+  "schema_version": "1.0",
+  "shard": "shard_00.tsv",
+  "state": "PASS"
+}

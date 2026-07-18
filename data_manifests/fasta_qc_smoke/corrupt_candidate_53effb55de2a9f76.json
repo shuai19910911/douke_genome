@@ -1,0 +1,11 @@
+{
+  "candidate_id": "53effb55de2a9f76",
+  "error_message": "Compressed file ended before the end-of-stream marker was reached",
+  "error_type": "EOFError",
+  "job_id": "8600492_0",
+  "mtime_ns": 1780765873000000000,
+  "relative_path": "legumeinfo/Huaxia3_IGA1007.gnm1.RGGN/genome/glyma.Huaxia3_IGA1007.gnm1.RGGN.genome_main.fna.gz",
+  "size_bytes": 29490750,
+  "state": "FAIL",
+  "verification_role": "real_data_smoke"
+}

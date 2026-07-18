@@ -1,0 +1,18 @@
+{
+  "candidate_count": 552,
+  "counts_by_role": {
+    "generic_genome": 47,
+    "main": 182,
+    "ncbi_genomic": 300,
+    "softmasked": 23
+  },
+  "counts_by_source": {
+    "legume_family_legumeinfo": 171,
+    "legume_family_ncbi": 301,
+    "legumeinfo": 50,
+    "soyomics": 30
+  },
+  "registry_sha256": "547875ba4ae479e254816750bc23ca87cea33ab94ac1669cf7c3e7e10736a2a8",
+  "schema_version": "1.0",
+  "total_compressed_bytes": 172298978871
+}

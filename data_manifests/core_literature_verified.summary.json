@@ -1,0 +1,13 @@
+{
+  "cutoff_date": "2026-07-18",
+  "decision_counts": {
+    "exclude_editorial": 3,
+    "include_context": 8,
+    "include_core": 19
+  },
+  "fail_count": 0,
+  "failures": [],
+  "pass_count": 30,
+  "record_count": 30,
+  "schema_version": "1.0"
+}

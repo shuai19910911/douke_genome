@@ -1,0 +1,2 @@
+candidate_id	relative_path	source	genus	species	assembly_label	genome_role	size_bytes	mtime_ns
+6f87e906bc8ad96c	legume_family/ncbi/Medicago_truncatula/MedtrA17_3.5/genome/GCF_000219495.1_MedtrA17_3.5_genomic.fna.gz	legume_family_ncbi	Medicago	Medicago truncatula	MedtrA17_3.5	ncbi_genomic	83059820	1780835979000000000

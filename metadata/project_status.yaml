@@ -1,6 +1,6 @@
 schema_version: "1.0"
 project: LegumeGenomeFM
-state: phase_1_inventory_complete
+state: phase_2_fasta_qc_running
 formal_architecture_frozen: false
 formal_data_release_frozen: false
 formal_training_started: false
@@ -10,7 +10,7 @@ current_compute_policy:
   a100_used: false
 verified_tests:
   command: "pytest -q -p no:cacheprovider tests"
-  passed: 19
+  passed: 31
   failed: 0
 data_audit:
   phase_1_inventory: complete
@@ -18,9 +18,20 @@ data_audit:
   ordinary_files: 3427
   symlinks: 414
   ordinary_file_bytes: 209947381782
-  phase_2_sequence_qc: not_started
+  phase_2_sequence_qc: running
+  phase_2_job_id: "8600499"
+  assembly_candidates: 552
+  assembly_candidate_bytes: 172309972336
+  shard_count: 6
+  smoke_passed: true
+  resume_smoke_passed: true
+  corrupt_gzip_detected: 1
 literature:
   cutoff_date: "2026-07-18"
-  query_count: 26
-  candidate_count: 2264
-  screening: in_progress
+  query_count: 36
+  candidate_count: 2958
+  nature_portfolio_candidates: 154
+  verified_core_records: 30
+  verification_failures: 0
+  evidence_matrix_records: 14
+  screening: complete
