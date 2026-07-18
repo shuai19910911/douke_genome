@@ -1,0 +1,17 @@
+{
+  "counts_by_type": {
+    "annotation": 537,
+    "archive": 201,
+    "checksum": 49,
+    "fasta": 1289,
+    "interval": 155,
+    "other": 1196
+  },
+  "file_count": 3427,
+  "inventory_sha256": "06f2e74f46a76f302aef45b6243c3498823bf9bff253509d900e77358ca92617",
+  "record_count": 3841,
+  "schema_version": "1.0",
+  "special_count": 0,
+  "symlink_count": 414,
+  "total_bytes": 209947381782
+}

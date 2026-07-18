@@ -1,0 +1,21 @@
+schema_version: "1.0"
+project_root_policy: repository_root
+data_root_env: DATA_ROOT
+output_root_env: OUTPUT_ROOT
+raw_inventory:
+  partition_preference:
+    - fat
+    - q03
+    - q04
+    - q02
+    - q05
+  cpus: 2
+  memory_gib: 8
+  time_limit: "02:00:00"
+  follow_symlinks: false
+  paths: relative_to_data_root
+  checksum_mode: deferred_to_phase_2
+full_sequence_qc:
+  state: not_started
+  execution: slurm_only
+  max_parallel_jobs: 6

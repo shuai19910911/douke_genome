@@ -1,0 +1,40 @@
+# Raw and generated data
+data/raw/
+data/processed/
+data/shards/
+checkpoints/
+results/
+logs/
+workspace/
+
+# Local machine configuration and secrets
+*.local
+*.local.*
+.env
+.env.*
+!.env.example
+
+# Python/build caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Training and scheduler artifacts
+slurm-*.out
+slurm-*.err
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+wandb/
+
+# Editor/OS files
+.vscode/
+.idea/
+.DS_Store
+*~

@@ -1,0 +1,26 @@
+schema_version: "1.0"
+project: LegumeGenomeFM
+state: phase_1_inventory_complete
+formal_architecture_frozen: false
+formal_data_release_frozen: false
+formal_training_started: false
+current_compute_policy:
+  cpu_heavy_work: slurm_only
+  gpu_development: rtx_2080_ti_only
+  a100_used: false
+verified_tests:
+  command: "pytest -q -p no:cacheprovider tests"
+  passed: 19
+  failed: 0
+data_audit:
+  phase_1_inventory: complete
+  inventory_records: 3841
+  ordinary_files: 3427
+  symlinks: 414
+  ordinary_file_bytes: 209947381782
+  phase_2_sequence_qc: not_started
+literature:
+  cutoff_date: "2026-07-18"
+  query_count: 26
+  candidate_count: 2264
+  screening: in_progress
