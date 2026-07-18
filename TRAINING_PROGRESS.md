@@ -4,7 +4,7 @@
 
 - 最后更新：2026-07-18 23:35:28 CST（UTC+08:00）。
 - 当前阶段：普通FASTA、SoyOD ZIP及ZIP内部genome内容审计均已完成；正在统一来源并准备近重复/泄漏审计。
-- Git：`main`；上一里程碑`fb83368`已与`origin/main`一致；本轮Annotation、metadata、environment及完整FASTA/ZIP审计待独立里程碑提交。
+- Git：`main`；数据审计里程碑`d9122bc`已发布并与`origin/main`一致。
 - 正式架构：未冻结。
 - 正式训练：未开始。
 - 下一步唯一优先任务：发布584个PASS genome source的统一机器清单，补审37个有效ZIP GFF，并按材料/精确内容/反向互补/近重复冻结训练代表组装与泄漏合同。
