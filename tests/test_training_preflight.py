@@ -124,3 +124,12 @@ def test_frozen_stage_budgets_are_complete_global_batches() -> None:
     for path in sorted((root / "configs").glob("pretrain_stage*.yaml")):
         payload = yaml.safe_load(path.read_text(encoding="utf-8"))
         assert payload["max_tokens"] % payload["global_batch_tokens"] == 0, path
+
+
+def test_formal_configs_resolve_to_portable_project_root() -> None:
+    root = Path(__file__).parents[1].resolve()
+    for path in sorted((root / "configs").glob("pretrain_stage*.yaml")):
+        _, project_root, dataset, output = _MODULE.resolved_config(path)
+        assert project_root == root
+        assert dataset == root / "data_release" / "training_dataset.json"
+        output.relative_to(root / "runs")

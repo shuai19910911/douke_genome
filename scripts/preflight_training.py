@@ -27,12 +27,27 @@ def confined_relative(value: object, field: str) -> Path:
     return Path(*pure.parts)
 
 
+def resolve_project_root(config_path: Path, value: object) -> Path:
+    if not isinstance(value, str) or not value:
+        raise ValueError("project_root must be a non-empty relative path")
+    pure = PurePosixPath(value)
+    if pure.is_absolute() or pure.as_posix() != value:
+        raise ValueError(f"unsafe project_root: {value}")
+    root = (config_path.parent / Path(*pure.parts)).resolve()
+    try:
+        config_path.resolve().relative_to(root)
+    except ValueError as exc:
+        raise ValueError("training config must remain inside project_root") from exc
+    if not (root / "pyproject.toml").is_file():
+        raise ValueError("project_root does not contain pyproject.toml")
+    return root
+
+
 def resolved_config(config_path: Path) -> tuple[dict[str, object], Path, Path, Path]:
     payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("training config must be a mapping")
-    project_reference = confined_relative(payload.get("project_root"), "project_root")
-    project_root = (config_path.parent / project_reference).resolve()
+    project_root = resolve_project_root(config_path, payload.get("project_root"))
     dataset = project_root / confined_relative(payload.get("dataset_manifest"), "dataset_manifest")
     output = project_root / confined_relative(payload.get("output_dir"), "output_dir")
     return payload, project_root, dataset, output
