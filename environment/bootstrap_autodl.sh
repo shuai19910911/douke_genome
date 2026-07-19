@@ -20,4 +20,4 @@ else
   "$UV" pip install --python "$VENV/bin/python" --build-constraints "$ROOT/environment/build-constraints.txt" -r "$ROOT/environment/requirements.lock.txt"
   "$UV" pip install --python "$VENV/bin/python" --no-deps --no-build-isolation -e "$ROOT"
 fi
-"$VENV/bin/python" -c 'import torch, numpy, sourmash, yaml; print(torch.__version__, torch.version.cuda)'
+"$VENV/bin/python" -c 'import legumegenomefm, torch, numpy, sourmash, yaml; print(torch.__version__, torch.version.cuda)'
