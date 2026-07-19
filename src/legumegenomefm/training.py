@@ -61,12 +61,29 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _implementation_hash() -> str:
+    package_root = Path(__file__).resolve().parent
+    digest = hashlib.sha256(b"legumegenomefm-training-closure-v1\0")
+    for name in (
+        "masking.py",
+        "model.py",
+        "sequence_store.py",
+        "tokenizer.py",
+        "training.py",
+        "training_data.py",
+    ):
+        digest.update(name.encode("ascii") + b"\0")
+        digest.update((package_root / name).read_bytes())
+    return digest.hexdigest()
+
+
 def _canonical_config(config: TrainConfig) -> dict[str, object]:
     payload = asdict(config)
     payload["dataset_manifest"] = str(Path(config.dataset_manifest).resolve())
     payload["project_root"] = str(Path(config.project_root).resolve())
     payload["output_dir"] = str(Path(config.output_dir).resolve())
     payload["dataset_manifest_sha256"] = _sha256(Path(config.dataset_manifest))
+    payload["implementation_sha256"] = _implementation_hash()
     return payload
 
 
@@ -165,6 +182,7 @@ def _save_checkpoint(
     loss: float,
     config_hash: str,
 ) -> Path:
+    implementation_sha256 = _implementation_hash()
     target = root / f"step_{step:08d}"
     valid, _ = _checkpoint_valid(target, config_hash) if target.exists() else (False, None)
     if valid:
@@ -185,6 +203,7 @@ def _save_checkpoint(
                 "global_microstep": global_microstep,
                 "loss": loss,
                 "config_sha256": config_hash,
+                "implementation_sha256": implementation_sha256,
             },
             state_path,
         )
@@ -197,6 +216,7 @@ def _save_checkpoint(
             "global_microstep": global_microstep,
             "loss": loss,
             "config_sha256": config_hash,
+            "implementation_sha256": implementation_sha256,
             "state_sha256": state_sha,
         }
         receipt_bytes = (json.dumps(receipt, indent=2, sort_keys=True) + "\n").encode("utf-8")
