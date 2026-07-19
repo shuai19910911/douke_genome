@@ -5,7 +5,9 @@ data/shards/
 checkpoints/
 results/
 logs/
+runs/
 workspace/
+.venv/
 
 # Rebuildable per-file audit resume state (aggregated manifests remain tracked)
 data_manifests/fasta_qc_results/

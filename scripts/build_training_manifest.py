@@ -5,12 +5,34 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import yaml
 
 from legumegenomefm.genome_sketch import read_sketch_registry
 from legumegenomefm.training_data import build_training_manifest
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(8 * 1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def atomic(path: Path, payload: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp.{os.getpid()}")
+    try:
+        with temporary.open("wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def rows(path: Path) -> list[dict[str, str]]:
@@ -71,7 +93,28 @@ def main() -> int:
         cold_genera=set(config["cold_genera"]),
         max_context=int(config["max_context"]),
     )
-    print(json.dumps(result.summary, sort_keys=True))
+    implementation = hashlib.sha256(b"training-manifest-producer-v1\0")
+    implementation.update(Path(__file__).read_bytes())
+    implementation.update(Path(__import__("legumegenomefm.training_data", fromlist=["x"]).__file__).read_bytes())
+    receipt = {
+        "schema_version": "1.0",
+        "state": "READY",
+        "dataset_manifest_sha256": sha256(result.manifest_path),
+        "dataset_summary_sha256": sha256(result.summary_path),
+        "implementation_sha256": implementation.hexdigest(),
+        "inputs": {
+            "data_freeze_config_sha256": sha256(args.config),
+            "sketch_registry_sha256": sha256(args.sketch_registry),
+            "near_duplicate_clusters_sha256": sha256(args.near_clusters),
+            "orientation_identity_sha256": sha256(args.orientation_identity),
+        },
+        "summary": result.summary,
+    }
+    receipt_bytes = (json.dumps(receipt, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    receipt_path = args.output.parent / "training_dataset.release.json"
+    atomic(receipt_path, receipt_bytes)
+    atomic(args.output.parent / "TRAINING_DATASET_READY", (hashlib.sha256(receipt_bytes).hexdigest() + "\n").encode("ascii"))
+    print(json.dumps({**result.summary, "release_receipt_sha256": hashlib.sha256(receipt_bytes).hexdigest()}, sort_keys=True))
     return 0
 
 

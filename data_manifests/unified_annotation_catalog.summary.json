@@ -1,0 +1,14 @@
+{
+  "archive_source_count": 37,
+  "gene_feature_count": 15973108,
+  "invalid_coordinate_source_count": 8,
+  "malformed_source_count": 31,
+  "ordinary_source_count": 537,
+  "paired_source_count": 568,
+  "pass_count": 574,
+  "primary_gene_model_count": 301,
+  "schema_version": "1.0",
+  "source_count": 574,
+  "tsv_sha256": "5c4112a31c6630cbe8a882082d39cf61f631180a5dcad36585187e8f74738364",
+  "unpaired_source_count": 6
+}

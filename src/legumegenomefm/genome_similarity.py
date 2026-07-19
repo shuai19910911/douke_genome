@@ -126,30 +126,33 @@ def aggregate_genome_sketches(
 
     pair_rows: list[dict[str, object]] = []
     maximum_similarity = {candidate.candidate_id: 0.0 for candidate in candidates}
-    for binomial, group in sorted(by_binomial.items()):
-        ordered = sorted(group, key=lambda item: item.candidate_id)
-        for left_index, left in enumerate(ordered):
-            left_minhash = signatures[left.candidate_id].minhash
-            for right in ordered[left_index + 1 :]:
-                similarity = float(left_minhash.similarity(signatures[right.candidate_id].minhash))
-                maximum_similarity[left.candidate_id] = max(maximum_similarity[left.candidate_id], similarity)
-                maximum_similarity[right.candidate_id] = max(maximum_similarity[right.candidate_id], similarity)
-                if similarity < related_threshold:
-                    continue
-                classification = "near_duplicate" if similarity >= near_duplicate_threshold else "related"
-                if classification == "near_duplicate":
-                    union(left.candidate_id, right.candidate_id)
-                pair_rows.append(
-                    {
-                        "left_candidate_id": left.candidate_id,
-                        "right_candidate_id": right.candidate_id,
-                        "binomial": binomial,
-                        "left_material_key": left.material_key,
-                        "right_material_key": right.material_key,
-                        "jaccard": f"{similarity:.8f}",
-                        "classification": classification,
-                    }
-                )
+    ordered = sorted(candidates, key=lambda item: item.candidate_id)
+    for left_index, left in enumerate(ordered):
+        left_minhash = signatures[left.candidate_id].minhash
+        left_binomial = _binomial(left.species)
+        for right in ordered[left_index + 1 :]:
+            right_binomial = _binomial(right.species)
+            similarity = float(left_minhash.similarity(signatures[right.candidate_id].minhash))
+            maximum_similarity[left.candidate_id] = max(maximum_similarity[left.candidate_id], similarity)
+            maximum_similarity[right.candidate_id] = max(maximum_similarity[right.candidate_id], similarity)
+            if similarity < related_threshold:
+                continue
+            classification = "near_duplicate" if similarity >= near_duplicate_threshold else "related"
+            if classification == "near_duplicate":
+                union(left.candidate_id, right.candidate_id)
+            pair_rows.append(
+                {
+                    "left_candidate_id": left.candidate_id,
+                    "right_candidate_id": right.candidate_id,
+                    "left_binomial": left_binomial,
+                    "right_binomial": right_binomial,
+                    "same_binomial": left_binomial == right_binomial,
+                    "left_material_key": left.material_key,
+                    "right_material_key": right.material_key,
+                    "jaccard": f"{similarity:.8f}",
+                    "classification": classification,
+                }
+            )
 
     components: dict[str, list[str]] = defaultdict(list)
     for candidate in candidates:
@@ -176,13 +179,16 @@ def aggregate_genome_sketches(
                 "near_duplicate_group_id": f"near-{representative}",
                 "near_duplicate_group_size": len(members),
                 "near_duplicate_representative": candidate_id == representative,
-                "max_within_binomial_jaccard": f"{maximum_similarity[candidate_id]:.8f}",
+                "max_global_jaccard": f"{maximum_similarity[candidate_id]:.8f}",
             }
         )
-    summary: dict[str, object] = {
+    summary = {
         "schema_version": "1.0",
+        "aggregator_implementation_sha256": _sha256(Path(__file__)),
         "candidate_count": len(candidates),
         "binomial_group_count": len(by_binomial),
+        "comparison_scope": "all_candidates",
+        "pairwise_comparison_count": len(candidates) * (len(candidates) - 1) // 2,
         "pair_count_at_or_above_related_threshold": len(pair_rows),
         "near_duplicate_pair_count": sum(row["classification"] == "near_duplicate" for row in pair_rows),
         "near_duplicate_group_count": sum(len(members) > 1 for members in normalized_components.values()),
@@ -200,12 +206,12 @@ def aggregate_genome_sketches(
     clusters_path = output_dir / "genome_near_duplicate_clusters.tsv"
     summary_path = output_dir / "genome_similarity.summary.json"
     pair_fields = [
-        "left_candidate_id", "right_candidate_id", "binomial", "left_material_key",
-        "right_material_key", "jaccard", "classification",
+        "left_candidate_id", "right_candidate_id", "left_binomial", "right_binomial",
+        "same_binomial", "left_material_key", "right_material_key", "jaccard", "classification",
     ]
     cluster_fields = [
         "candidate_id", "species", "material_key", "near_duplicate_group_id",
-        "near_duplicate_group_size", "near_duplicate_representative", "max_within_binomial_jaccard",
+        "near_duplicate_group_size", "near_duplicate_representative", "max_global_jaccard",
     ]
     for path, rows, fieldnames in (
         (pairs_path, pair_rows, pair_fields),
