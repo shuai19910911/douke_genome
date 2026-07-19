@@ -25,6 +25,7 @@ def main() -> int:
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--initialize-from", type=Path)
     parser.add_argument("--device", choices=("cpu", "cuda"))
+    parser.add_argument("--stop-after-steps", type=int)
     args = parser.parse_args()
     config = load_config(args.config.resolve())
     result = run_training(
@@ -32,6 +33,7 @@ def main() -> int:
         device_override=args.device,
         resume=args.resume,
         initialize_checkpoint=args.initialize_from,
+        stop_after_steps=args.stop_after_steps,
     )
     print(json.dumps({"checkpoint": str(result.checkpoint_dir), "loss": result.loss, "step": result.step, "tokens_seen": result.tokens_seen}, sort_keys=True))
     return 0

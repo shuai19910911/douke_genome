@@ -253,6 +253,12 @@ def run_training(
         raise ValueError("CPU training requires fp32 precision")
     if device.type == "cuda" and config.precision == "bf16" and not torch.cuda.is_bf16_supported():
         raise ValueError("CUDA device does not support bf16")
+    memory_fraction = os.environ.get("LEGUME_GPU_MEMORY_FRACTION")
+    if device.type == "cuda" and memory_fraction is not None:
+        fraction = float(memory_fraction)
+        if not 0 < fraction <= 1:
+            raise ValueError("LEGUME_GPU_MEMORY_FRACTION must be in (0, 1]")
+        torch.cuda.set_per_process_memory_fraction(fraction, device.index or 0)
 
     torch.manual_seed(config.seed)
     if device.type == "cuda":
