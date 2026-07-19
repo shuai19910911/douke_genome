@@ -129,3 +129,25 @@ def test_archive_genome_qc_slurm_chain_uses_ordinary_non_cu_partitions() -> None
     combined = sbatch_text + submit_text
     assert re.search(r"/(?:home|Users)/", combined) is None
     assert re.search(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", combined) is None
+
+
+def test_archive_annotation_qc_slurm_chain_uses_dynamic_ordinary_array() -> None:
+    sbatch_path = PROJECT_ROOT / "scripts" / "slurm" / "audit_archive_annotations.sbatch"
+    submit_path = PROJECT_ROOT / "scripts" / "submit_archive_annotation_qc.sh"
+    sbatch_text = sbatch_path.read_text()
+    submit_text = submit_path.read_text()
+
+    assert sbatch_text.startswith("#!/bin/sh\n")
+    assert "PROJECT_ROOT=${PROJECT_ROOT:?" in sbatch_text
+    assert "DATA_ROOT=${DATA_ROOT:?" in sbatch_text
+    assert "REGISTRY=${REGISTRY:?" in sbatch_text
+    assert "SLURM_ARRAY_TASK_ID" in sbatch_text
+    assert "audit_archive_annotation.py" in sbatch_text
+    assert submit_text.startswith("#!/bin/sh\nset -eu\n")
+    assert "PARTITIONS=${PARTITIONS:-q02,q03,q04,q05}" in submit_text
+    assert "fat" not in submit_text
+    assert '--array="0-${LAST}%${THROTTLE}"' in submit_text
+    assert "archive-annotation-%A_%a.out" in submit_text
+    combined = sbatch_text + submit_text
+    assert re.search(r"/(?:home|Users)/", combined) is None
+    assert re.search(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", combined) is None

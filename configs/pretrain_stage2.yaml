@@ -1,0 +1,25 @@
+project_root: ..
+dataset_manifest: data_release/training_dataset.json
+output_dir: runs/formal/stage2_4kb
+context_length: 4096
+micro_batch_size: 2
+global_batch_tokens: 524288
+max_tokens: 34999894016
+warmup_tokens: 100000000
+learning_rate: 0.00015
+min_lr_ratio: 0.1
+weight_decay: 0.1
+gradient_clip: 1.0
+seed: 20260719
+precision: bf16
+checkpoint_every_steps: 500
+log_every_steps: 10
+mask_probability: 0.15
+mean_mask_span: 3.0
+model:
+  d_model: 640
+  n_layers: 18
+  ffn_multiple: 3
+  kernel_size: 7
+  dilations: [1, 4, 16, 64]
+  dropout: 0.0
