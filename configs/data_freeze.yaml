@@ -1,0 +1,23 @@
+schema_version: "1.0"
+max_context: 16384
+quality_policy:
+  require_pass: true
+  require_exact_representative: true
+  exclude_path_substring: _hardmasked
+  maximum_n_fraction: 0.20
+minhash:
+  ksize: 31
+  scaled: 10000
+  related_jaccard: 0.80
+  near_duplicate_jaccard: 0.95
+cold_genera:
+  - Arachis
+  - Cercis
+  - Chamaecrista
+  - Cicer
+  - Lupinus
+  - Vigna
+sampling:
+  species_callable_base_temperature: 0.3
+  within_species_callable_base_temperature: 0.5
+  near_duplicate_group_penalty: 0.5

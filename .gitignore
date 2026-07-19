@@ -17,6 +17,8 @@ data_manifests/archive_annotation_qc_results/
 data_manifests/archive_annotation_qc_smoke/
 data_manifests/genome_sketch_results/
 data_manifests/genome_sketch_smoke/
+data_manifests/orientation_identity_results/
+data_manifests/orientation_identity_smoke/
 
 # Local machine configuration and secrets
 *.local
