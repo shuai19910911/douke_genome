@@ -220,16 +220,17 @@ def _feed_fasta(
             tail = b""
             buffer.clear()
             continue
-        sequence = b"".join(raw_line.split()).upper()
-        if not sequence:
-            continue
         if not in_sequence:
             raise ValueError("FASTA sequence encountered before first header")
-        total_symbols += len(sequence)
-        if store_writer is not None:
-            store_writer.add_bases(sequence)
-        buffer.extend(sequence)
-        feed_buffer(False)
+        for offset in range(0, len(raw_line), block_size):
+            sequence = b"".join(raw_line[offset : offset + block_size].split()).upper()
+            if not sequence:
+                continue
+            total_symbols += len(sequence)
+            if store_writer is not None:
+                store_writer.add_bases(sequence)
+            buffer.extend(sequence)
+            feed_buffer(False)
     if in_sequence:
         feed_buffer(True)
     if sequence_count == 0:

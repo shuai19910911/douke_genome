@@ -15,6 +15,7 @@ def main() -> int:
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--related-threshold", type=float, default=0.80)
     parser.add_argument("--near-duplicate-threshold", type=float, default=0.95)
+    parser.add_argument("--allow-mixed-implementations", action="store_true")
     args = parser.parse_args()
     result = aggregate_genome_sketches(
         args.registry,
@@ -22,6 +23,7 @@ def main() -> int:
         args.output_dir,
         related_threshold=args.related_threshold,
         near_duplicate_threshold=args.near_duplicate_threshold,
+        allow_mixed_implementations=args.allow_mixed_implementations,
     )
     print(json.dumps(result.summary, sort_keys=True))
     return 0

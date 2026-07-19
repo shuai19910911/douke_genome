@@ -51,8 +51,8 @@ def _binomial(species: str) -> str:
 
 
 def _validated_signatures(
-    candidates: list[GenomeSketchCandidate], result_dir: Path
-) -> tuple[dict[str, object], str, int, int]:
+    candidates: list[GenomeSketchCandidate], result_dir: Path, *, allow_mixed_implementations: bool
+) -> tuple[dict[str, object], list[str], int, int]:
     expected_ids = {candidate.candidate_id for candidate in candidates}
     observed_json = {path.stem for path in result_dir.glob("*.json")}
     extras = sorted(observed_json - expected_ids)
@@ -82,11 +82,13 @@ def _validated_signatures(
         if len(loaded) != 1:
             raise ValueError(f"signature file must contain one genome: {candidate.candidate_id}")
         signatures[candidate.candidate_id] = loaded[0]
-    if len(implementations) != 1 or not next(iter(implementations), ""):
+    if not implementations or "" in implementations:
+        raise ValueError("missing genome sketch implementation hash")
+    if len(implementations) != 1 and not allow_mixed_implementations:
         raise ValueError("mixed genome sketch implementation hashes")
     if len(ksizes) != 1 or len(scales) != 1:
         raise ValueError("mixed genome sketch parameters")
-    return signatures, next(iter(implementations)), next(iter(ksizes)), next(iter(scales))
+    return signatures, sorted(implementations), next(iter(ksizes)), next(iter(scales))
 
 
 def aggregate_genome_sketches(
@@ -96,12 +98,15 @@ def aggregate_genome_sketches(
     *,
     related_threshold: float = 0.80,
     near_duplicate_threshold: float = 0.95,
+    allow_mixed_implementations: bool = False,
 ) -> GenomeSimilarityResult:
     if not 0 <= related_threshold <= near_duplicate_threshold <= 1:
         raise ValueError("invalid similarity thresholds")
     candidates = read_sketch_registry(registry_path)
     result_dir = Path(result_dir)
-    signatures, implementation, ksize, scaled = _validated_signatures(candidates, result_dir)
+    signatures, implementations, ksize, scaled = _validated_signatures(
+        candidates, result_dir, allow_mixed_implementations=allow_mixed_implementations
+    )
     by_binomial: dict[str, list[GenomeSketchCandidate]] = defaultdict(list)
     for candidate in candidates:
         by_binomial[_binomial(candidate.species)].append(candidate)
@@ -186,7 +191,9 @@ def aggregate_genome_sketches(
         "near_duplicate_threshold": near_duplicate_threshold,
         "ksize": ksize,
         "scaled": scaled,
-        "implementation_sha256": implementation,
+        "implementation_sha256": implementations[0] if len(implementations) == 1 else None,
+        "implementation_sha256s": implementations,
+        "mixed_implementations_approved": len(implementations) > 1 and allow_mixed_implementations,
     }
     output_dir = Path(output_dir)
     pairs_path = output_dir / "genome_similarity_pairs.tsv"

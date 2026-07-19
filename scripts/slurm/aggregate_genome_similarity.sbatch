@@ -12,4 +12,4 @@ OUTPUT_DIR=${OUTPUT_DIR:?OUTPUT_DIR is required}
 PYTHON_BIN=${PYTHON_BIN:?PYTHON_BIN is required}
 export PYTHONDONTWRITEBYTECODE=1
 export PYTHONPATH="$PROJECT_ROOT/src"
-exec "$PYTHON_BIN" -B "$PROJECT_ROOT/scripts/aggregate_genome_similarity.py" --registry "$REGISTRY" --result-dir "$RESULT_DIR" --output-dir "$OUTPUT_DIR" --related-threshold 0.80 --near-threshold 0.95
+exec "$PYTHON_BIN" -B "$PROJECT_ROOT/scripts/aggregate_genome_similarity.py" --registry "$REGISTRY" --result-dir "$RESULT_DIR" --output-dir "$OUTPUT_DIR" --related-threshold 0.80 --near-duplicate-threshold 0.95 --allow-mixed-implementations

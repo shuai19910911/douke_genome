@@ -7,9 +7,10 @@ import json
 import zipfile
 from pathlib import Path
 
-from sourmash import load_file_as_signatures
+from sourmash import MinHash, load_file_as_signatures
 
 from legumegenomefm.genome_sketch import (
+    _feed_fasta,
     audit_genome_sketch,
     build_sketch_candidates,
 )
@@ -98,3 +99,15 @@ def test_sketch_candidate_registry_uses_only_pass_representatives(tmp_path: Path
     _write_catalog(catalog, [row, not_rep, failed, hardmasked, high_n])
     candidates = build_sketch_candidates(catalog)
     assert [candidate.candidate_id for candidate in candidates] == ["a" * 16]
+
+
+def test_long_unwrapped_line_matches_wrapped_fasta() -> None:
+    sequence = (b"ACGTTGCAN" * 1000) + b"ACGT"
+    unwrapped = [b">chr1\n", sequence + b"\n"]
+    wrapped = [b">chr1\n"] + [sequence[index : index + 71] + b"\n" for index in range(0, len(sequence), 71)]
+    left = MinHash(n=0, ksize=31, scaled=10)
+    right = MinHash(n=0, ksize=31, scaled=10)
+    assert _feed_fasta(iter(unwrapped), left, ksize=31, block_size=97) == _feed_fasta(
+        iter(wrapped), right, ksize=31, block_size=97
+    )
+    assert left == right
