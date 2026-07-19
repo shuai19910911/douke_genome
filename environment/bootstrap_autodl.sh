@@ -10,14 +10,14 @@ if [ -f "$ARCHIVE" ]; then
   mkdir -p "$VENV"
   tar -xzf "$ARCHIVE" -C "$VENV"
   "$VENV/bin/conda-unpack"
-  "$VENV/bin/python" -m pip install --no-deps -e "$ROOT"
+  "$VENV/bin/python" -m pip install --no-deps --no-build-isolation -e "$ROOT"
 elif [ -d "${ROOT}/wheelhouse" ]; then
   "$UV" venv --python "$PYTHON" "$VENV"
   "$UV" pip install --python "$VENV/bin/python" --no-index --find-links "${ROOT}/wheelhouse" -r "$ROOT/environment/requirements.lock.txt"
-  "$UV" pip install --python "$VENV/bin/python" --no-deps -e "$ROOT"
+  "$UV" pip install --python "$VENV/bin/python" --no-deps --no-build-isolation -e "$ROOT"
 else
   "$UV" venv --python "$PYTHON" "$VENV"
   "$UV" pip install --python "$VENV/bin/python" --build-constraints "$ROOT/environment/build-constraints.txt" -r "$ROOT/environment/requirements.lock.txt"
-  "$UV" pip install --python "$VENV/bin/python" --no-deps -e "$ROOT"
+  "$UV" pip install --python "$VENV/bin/python" --no-deps --no-build-isolation -e "$ROOT"
 fi
 "$VENV/bin/python" -c 'import torch, numpy, sourmash, yaml; print(torch.__version__, torch.version.cuda)'
