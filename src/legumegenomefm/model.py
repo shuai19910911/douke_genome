@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torch.utils.checkpoint import checkpoint
 
 from legumegenomefm.tokenizer import DNA_VOCAB_SIZE, complement_logits, reverse_complement_tokens
 
@@ -120,6 +121,7 @@ class LegumeGenomeModel(nn.Module):
         self.blocks = nn.ModuleList(LegumeGenomeBlock(config) for _ in range(config.n_layers))
         self.final_norm = RMSNorm(config.d_model, config.norm_eps)
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
+        self.gradient_checkpointing = False
         self.apply(self._initialize)
         self.lm_head.weight = self.token_embedding.weight
 
@@ -135,8 +137,14 @@ class LegumeGenomeModel(nn.Module):
     def _forward_single_orientation(self, input_ids: torch.Tensor) -> torch.Tensor:
         hidden = self.token_embedding(input_ids)
         for block in self.blocks:
-            hidden = block(hidden)
+            if self.gradient_checkpointing and self.training:
+                hidden = checkpoint(block, hidden, use_reentrant=False)
+            else:
+                hidden = block(hidden)
         return self.lm_head(self.final_norm(hidden))
+
+    def set_gradient_checkpointing(self, enabled: bool) -> None:
+        self.gradient_checkpointing = bool(enabled)
 
     def forward(
         self,

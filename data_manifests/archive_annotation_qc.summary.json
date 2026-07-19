@@ -1,0 +1,11 @@
+{
+  "candidate_count": 37,
+  "feature_count": 45966882,
+  "gene_count": 2058314,
+  "implementation_sha256": "51722e652cb20ebc36a81f4135b9c9f04403bc3a4c90a9b96d11d176b49a4ee3",
+  "invalid_coordinate_count": 2,
+  "malformed_line_count": 0,
+  "paired_count": 31,
+  "pass_count": 37,
+  "schema_version": "1.0"
+}

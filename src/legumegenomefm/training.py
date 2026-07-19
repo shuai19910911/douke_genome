@@ -259,6 +259,7 @@ def run_training(
         torch.cuda.manual_seed_all(config.seed)
     model_config = _model_config(config.model)
     model = LegumeGenomeModel(model_config).to(device)
+    model.set_gradient_checkpointing(True)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=config.learning_rate, betas=(0.9, 0.95), weight_decay=config.weight_decay
     )
