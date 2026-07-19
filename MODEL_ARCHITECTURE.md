@@ -1,58 +1,101 @@
-# LegumeGenomeFM Model Architecture
+# LegumeGenomeFM-89M：正式模型架构
 
-> 冻结状态：**NOT FROZEN（未冻结）**，2026-07-18。文献、普通FASTA、ZIP genome、Annotation和运行环境证据已完成；统一代表组装、反向互补/近重复、泄漏划分和可采样窗口仍未冻结。任何具体层数、维度、参数量、上下文、tokenizer、训练目标或优化器数字都不是正式方案。
+> 冻结状态：**FROZEN（已冻结）**，2026-07-19。正式实现只有这一套模型语义；GPU数量只改变DDP（数据并行）和梯度累积，不改变参数、tokenizer（词元编码器）、目标或样本分布。
 
-## 1. 模型定位
+## 1. 定位与冻结结论
 
-项目工作名为LegumeGenomeFM：面向豆科多物种基因组的单一共享参数基础模型。目标不是以参数量作为创新，而是学习在跨物种、跨属、低同源、外部材料及多层下游任务中可迁移的序列规律。
+LegumeGenomeFM-89M是面向豆科多物种基因组的单碱基基础模型。核心设计是：
 
-正式架构最终只能有一个名称、一个tokenizer、一个最大上下文上限、一组有限的共享参数多尺度训练长度和一套训练目标。单卡与多卡只能改变并行和batch组织，不改变模型语义。
+1. 以共享参数覆盖1,024、4,096和16,384 bp三个尺度；
+2. 使用线性复杂度的分层膨胀卷积混合器，避免标准attention（二次复杂度）在16 kb上的显存开销；
+3. 在模型输出层实施精确reverse-complement symmetry（反向互补对称），而不是只靠随机RC增强；
+4. 用cold-genus（整属留出）、全局近重复组和材料版本组约束后续评测泄漏。
 
-## 2. 决策所需证据
+正式定义位于`src/legumegenomefm/model.py`、`src/legumegenomefm/tokenizer.py`和`configs/pretrain_stage{1,2,3}.yaml`。不得以“更大模型”“换tokenizer”或“临时attention层”修改正式主结果；任何替代只能作为预注册消融。
 
-冻结必须等待：
+## 2. Tokenizer与输入语义
 
-- 原始FASTA/普通GFF质量和配套主体已完成；ZIP GFF、许可证与最终版本裁决仍待完成；
-- 精确内容去重已完成；材料多版本、反向互补/近重复后有效碱基、物种/属贡献和不同长度可采样窗口仍待完成；
-- 核心文献Methods与可访问官方来源核验已完成；
-- 主要路线在reverse complement（反向互补）语义、长程感受野、复杂度、成熟实现和A100 40GB适配方面的证据比较；
-- RTX 2080 Ti PyTorch/CUDA后端已通过；正式模型短序列forward/backward（前向/反向）仍待架构冻结后实测；
-- 同等token/算力下多尺度相对单尺度的预注册对照设计。
+- 粒度：单碱基，一个token对应一个输入碱基，不使用k-mer切分。
+- 词表：17个token，即`PAD`、`MASK`、`A/C/G/T/N/R/Y/S/W/K/M/B/D/H/V`。
+- 互补关系：A↔T、C↔G、R↔Y、K↔M、B↔V、D↔H，N/S/W保持自身。
+- 正式预训练窗口只从2-bit store（两比特压缩序列库）的ACGT callable intervals（可采样区间）抽取；含模糊IUPAC字符的位置不会被伪装成A进入训练标签。完整IUPAC词表保留给外部推理与下游接口。
+- contig（染色体/序列片段）之间不拼接；窗口不能跨contig边界。
+- MLM（掩码语言模型）目标只在被掩码位置计算交叉熵。
 
-## 3. 正式字段状态
+## 3. 主干结构
 
-| 字段 | 当前状态 | 冻结证据 |
-|---|---|---|
-| 正式模型名称 | 未冻结 | 架构选择完成后确定 |
-| DNA字母表与IUPAC处理 | 原始字符分布已审计，正式语义未冻结 | 584个PASS source的统一纳入裁决 |
-| tokenizer与词表 | 未冻结 | 偏差、效率、跨物种证据 |
-| 特殊token/边界/padding | 未冻结 | 数据格式与packing合同 |
-| reverse-complement机制 | 未冻结 | 等变/一致性语义与实测 |
-| 主干模块、层数、hidden size | 未冻结 | 数据容量、算力和文献 |
-| attention/SSM/卷积组成 | 未冻结 | 长度需求和成熟后端 |
-| 最大上下文`L_max` | 未冻结 | 长度分布、任务价值、显存 |
-| 正式多尺度集合 | 未冻结 | 生物尺度与等算力对照 |
-| 各尺度token配额和调度 | 未冻结 | 可用窗口与吞吐预算 |
-| 预训练目标与loss权重 | 未冻结 | 下游关联与基因组证据 |
-| 精确参数量 | 未核实 | 正式代码实例化统计 |
-| A100 40GB显存/吞吐 | 理论预算未开始 | 冻结模型后计算 |
-| RTX 2080 Ti实测 | 环境/CUDA smoke已通过；正式模型未开始 | 冻结模型后的forward/backward与恢复验证 |
-| AutoDL多卡策略 | 未冻结 | 正式并行方案与恢复测试 |
+| 字段 | 正式值 |
+|---|---:|
+| 模型类 | `ReverseComplementGenomeModel` |
+| 词表 | 17 |
+| hidden size `d_model` | 640 |
+| block数量 | 18 |
+| HierarchicalMixer卷积核 | 7 |
+| dilation（膨胀率） | 1、4、16、64 |
+| FFN倍数 | 3 |
+| dropout | 0.0 |
+| 参数共享 | 输入embedding与输出head权重绑定 |
+| trainable parameters（可训练参数） | **88,946,028** |
+| 最大正式上下文 | **16,384 bp** |
 
-## 4. 不可改变的实现语义
+每个block按以下顺序工作：
 
-最终实现必须让RTX 2080 Ti的FP16兼容路径和A100/AutoDL的BF16高效路径共享同一模型、tokenizer、数据、loss、checkpoint和下游接口。允许算子后端不同，但不得以近似运算改变数学语义。生产并行方案只选择一种，并支持`torchrun`、activation checkpointing（激活重计算）、可移植分片checkpoint和不同world size恢复。
+1. RMSNorm（均方根归一化）；
+2. 线性投影为content与gate两路；
+3. 四个depthwise convolution（逐通道卷积）分支，dilation为1/4/16/64；
+4. 局部平均池化分支和全序列均值上下文分支；
+5. 学习到的softmax权重融合六个尺度，SiLU gate控制信息流；
+6. 输出投影和残差连接；
+7. 第二个RMSNorm、SwiGLU式FFN和残差连接。
 
-## 5. 参数量与张量形状
+主干时间与激活复杂度随序列长度近似`O(L)`增长。全局均值分支提供整窗条件，但它不是精确长距离pairwise interaction（成对交互）；因此模型的正式能力边界是16 kb窗口，不宣称已经建模Mb级染色体互作。
 
-尚无正式架构，因此目前没有合法的精确参数整数或正式张量形状。冻结后由代码实例化脚本输出逐模块trainable/non-trainable（可训练/不可训练）参数、tied weight（共享权重）关系、每尺度张量形状、复杂度、checkpoint大小和显存分解；文档数字必须与机器输出一致。
+## 4. 精确反向互补对称
 
-## 6. 正式图件
+模型对输入`x`和其reverse complement `RC(x)`使用同一主干：
 
-架构图和多尺度训练图尚未生成，因为架构尚未冻结。冻结后输出到：
+1. 分别计算两路logits；
+2. 将RC路在位置维反转，并在词表维执行互补映射；
+3. 与正向logits取平均。
 
-- `figures/main/`：正式架构与多尺度主图PDF/PNG；
-- `figures/source_data/`：图源数据；
-- `scripts/figures/`：可重现绘图脚本。
+因此输出满足`f(x) = RC_align(f(RC(x)))`。RTX 2080 Ti在1 kb、4 kb和16 kb三种真实forward/backward/optimizer测试中的`rc_max_abs_error`均为`0.0`。代价是主干计算约翻倍；这一成本已包含显存和吞吐验证，不允许训练时关闭、推理时再临时打开。
 
-所有图件由`figures/figure_manifest.tsv`追踪；当前无已验收正式图。
+## 5. 多尺度共享参数
+
+三个stage使用同一参数形状：
+
+| Stage | 上下文 | micro-batch/GPU | global batch tokens | token预算 | 目的 |
+|---|---:|---:|---:|---:|---|
+| 1 | 1,024 | 8 | 262,144 | 34,999,894,016 | 局部motif、剪接和编码语法 |
+| 2 | 4,096 | 2 | 524,288 | 34,999,894,016 | 启动子、外显子/内含子和基因局部结构 |
+| 3 | 16,384 | 1 | 524,288 | 29,999,759,360 | 长基因结构与远距离窗口信息 |
+
+总预算为**99,999,547,392 tokens（约100B）**。Stage 2从Stage 1最终model state初始化，Stage 3从Stage 2初始化；每个stage重新建立optimizer与scheduler，避免把不同长度阶段的优化器动量误当作无缝resume。
+
+## 6. 训练目标与优化器
+
+- 目标：span MLM，掩码比例0.15，平均span长度3。
+- Optimizer：AdamW，`betas=(0.9, 0.95)`，`weight_decay=0.1`。
+- 学习率：Stage 1为`3e-4`，Stage 2为`2e-4`，Stage 3为`1e-4`。
+- Scheduler：2% linear warmup（线性预热）后cosine decay（余弦衰减），最小学习率比例0.1。
+- 梯度裁剪：global norm 1.0。
+- 正式精度：BF16；RTX 2080 Ti兼容/验证路径使用FP16动态loss scaling（损失缩放），两者不改变模型数学接口。
+- activation checkpointing（激活重计算）：开启。
+
+## 7. 已完成的真实硬件验证
+
+机器证据汇总：`data_manifests/gpu_validation.summary.json`。
+
+- RTX 2080 Ti（11 GiB）完成1 kb、4 kb、16 kb的真实forward/backward/optimizer步骤；
+- 16 kb峰值allocated显存3,490,339,840 bytes，峰值reserved显存3,680,501,760 bytes；
+- 16 kb在25%显存配额下按预期触发OOM边界，在35%配额下PASS；
+- 单GPU checkpoint从step 1/1,024 tokens恢复到step 2/2,048 tokens，model、optimizer、scheduler、scaler、RNG和采样器状态均闭合；
+- 双RTX 2080 Ti DDP在两个独立物理GPU上完成一步，`world_size=2`、`tokens_seen=2,048`；
+- FP16 overflow（溢出）会重试且不计入optimizer step；
+- **A100未用于上述验证，也不把A100吞吐写成实测值。**
+
+## 8. 不允许静默改变的合同
+
+以下任一变化都会形成新模型，而不是同一模型的工程调参：词表、层数、hidden size、卷积分支/dilation、RC平均语义、最大上下文、MLM定义、三个stage的token预算或冻结数据manifest。GPU数量、梯度累积步数和CUDA_VISIBLE_DEVICES映射可在保持global batch tokens整除时改变。
+
+当前已知边界：架构未宣称具备标准attention的精确任意位置交互；正式最大输入为16,384 bp；验证loss来自管线smoke，不是生物学性能结论；正式效果必须由`configs/evaluation_matrix.yaml`中的冻结评测合同决定。

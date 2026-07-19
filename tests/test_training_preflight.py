@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from legumegenomefm.sequence_store import PackedSequenceStoreWriter
 
@@ -104,3 +105,22 @@ def test_confined_relative_rejects_escape() -> None:
         _MODULE.confined_relative("../outside", "path")
     with pytest.raises(ValueError, match="unsafe"):
         _MODULE.confined_relative("/absolute", "path")
+
+
+def test_gpu_contract_rejects_partial_final_global_batch_before_cuda_probe() -> None:
+    payload = {
+        "context_length": 1024,
+        "micro_batch_size": 1,
+        "global_batch_tokens": 1024,
+        "max_tokens": 1025,
+        "precision": "bf16",
+    }
+    with pytest.raises(ValueError, match="whole number"):
+        _MODULE.validate_gpu_contract(payload, nproc=1, minimum_free_mib=1)
+
+
+def test_frozen_stage_budgets_are_complete_global_batches() -> None:
+    root = Path(__file__).parents[1]
+    for path in sorted((root / "configs").glob("pretrain_stage*.yaml")):
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert payload["max_tokens"] % payload["global_batch_tokens"] == 0, path

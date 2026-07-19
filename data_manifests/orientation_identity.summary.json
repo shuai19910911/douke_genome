@@ -1,0 +1,11 @@
+{
+  "candidate_count": 466,
+  "duplicate_group_count": 26,
+  "duplicate_member_count": 52,
+  "implementation_sha256": "902702c99680f38631ca2b3993c3838d7bf807e1336f8344405f5061bfd97daf",
+  "orientation_group_count": 440,
+  "registry_sha256": "1d3e19bdab4ea7540e11578cbf6334d76fb2e169acdcb66e98995b3c5e74dd5d",
+  "representative_count": 440,
+  "schema_version": "1.0",
+  "tsv_sha256": "4eccf2902223e6759274b02f99f1f9f90fc5e460a5a7cd491d50b067761705ce"
+}

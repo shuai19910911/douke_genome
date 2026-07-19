@@ -1,0 +1,22 @@
+{
+  "aggregator_implementation_sha256": "0ffce5a52a63188197f0979a29abeb27713ccd8adbf73cc269f841f521b60996",
+  "binomial_group_count": 134,
+  "candidate_count": 466,
+  "comparison_scope": "all_candidates",
+  "implementation_sha256": null,
+  "implementation_sha256s": [
+    "14b8dacd361ffefcae842f261b2c32d933d5c49ad612120b5947d4592a8d303d",
+    "546d06cc7f9ccb8ccbe3386cd39847ac4fb8b65f8816267a29639088bcb47c39"
+  ],
+  "ksize": 31,
+  "mixed_implementations_approved": true,
+  "near_duplicate_group_count": 66,
+  "near_duplicate_member_count": 187,
+  "near_duplicate_pair_count": 343,
+  "near_duplicate_threshold": 0.95,
+  "pair_count_at_or_above_related_threshold": 2994,
+  "pairwise_comparison_count": 108345,
+  "related_threshold": 0.8,
+  "scaled": 10000,
+  "schema_version": "1.0"
+}

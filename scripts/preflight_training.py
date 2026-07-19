@@ -113,6 +113,9 @@ def validate_gpu_contract(payload: dict[str, object], nproc: int, minimum_free_m
     global_batch = int(payload["global_batch_tokens"])
     if global_batch % (context * micro_batch * nproc):
         raise ValueError("global batch tokens are not divisible by the requested GPU count")
+    max_tokens = int(payload["max_tokens"])
+    if max_tokens <= 0 or max_tokens % global_batch:
+        raise ValueError("max_tokens must be a positive whole number of global token batches")
     if not torch.cuda.is_available() or torch.cuda.device_count() < nproc:
         raise ValueError(f"requested {nproc} CUDA devices are not available")
     devices: list[dict[str, object]] = []

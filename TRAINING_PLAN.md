@@ -1,114 +1,140 @@
-# LegumeGenomeFM Training Plan
+# LegumeGenomeFM-89M：正式预训练计划
 
-> 状态：系统文献核验、Annotation、taxon metadata、普通FASTA、SoyOD ZIP/ZIP genome和2080 CUDA环境验收均已完成（2026-07-18）。统一来源、ZIP GFF、反向互补/近重复和泄漏审计仍未冻结；正式架构、tokenizer（序列离散化方式）、上下文、多尺度配额、参数量、训练目标和优化器继续保持未冻结。
+> 状态：**FROZEN（已冻结）**，2026-07-19。数据、模型、目标、三个stage、global token batch、总预算、checkpoint语义和评测泄漏合同均已固定。实际开始仍必须通过AutoDL release deep verification（深度校验）、离线环境重定位验证和目标GPU preflight（启动前门禁）。
 
-## 1. 目标与核心科学问题
+## 1. 正式输入数据
 
-LegumeGenomeFM旨在从多物种豆科参考基因组学习可跨物种、跨属和跨进化距离迁移的DNA表示。项目必须回答：豆科专属预训练相对通用及植物基因组模型是否具有公平可复现的优势；优势是否能通过物种/属/低同源/外部留出评测排除身份、重复序列、组装版本和同源泄漏；不同序列尺度是否对基因结构、调控、变异和育种任务产生等token、等算力条件下的真实增益。
+机器入口：`data_release/training_dataset.json`。
 
-## 2. 证据先行的执行顺序
+| 字段 | 冻结值 |
+|---|---:|
+| RC归一化后的source数 | 440 |
+| pretrain source | 337 |
+| cold-genus holdout source | 103 |
+| genus数 | 69 |
+| species标签数 | 140 |
+| pretrain callable bases | 372,953,588,394 |
+| cold-genus callable bases | 99,581,789,352 |
+| 总callable bases | 472,535,377,746 |
+| 被选2-bit数据大小 | 124,660,775,084 bytes |
+| manifest SHA-256 | `d154f7a4d0dd3bad2b556ec15188aa24c7d6d490cb5900a4fea3723751571bb3` |
+| release receipt SHA-256 | `d6712a0207f10e89cb91f32c06cc9ff8b6f627557b963bb3cad41ea1ce7f3fdf` |
 
-1. 冻结检索截止日期、查询式、纳入/排除标准，并核验核心论文的DOI、Methods、补充方法和官方代码。
-2. 通过SLURM建立原始文件清单，随后分阶段完成FASTA/GFF/VCF配套、组装质量、注释质量、重复与污染审计。
-3. 基于真实可用碱基数、窗口长度分布、物种/属覆盖和算力推导token预算、容量及上下文。
-4. 预注册数据划分、泄漏门禁、核心下游任务、baseline（对照模型）和统计方法。
-5. 只冻结一个共享参数的正式模型、一套tokenizer、一套多尺度调度和一套训练目标。
-6. 用同一正式代码完成RTX 2080 Ti短程验证、checkpoint（断点）恢复和可行时的DDP（分布式数据并行）启动验证。
-7. 未经用户明确批准不使用A100；正式大规模预训练迁移至AutoDL。
+发布链由`training_dataset.release.json`绑定`data_freeze.yaml`、466-source sketch registry、全局108,345对MinHash比较、RC identity结果、dataset和summary；`TRAINING_DATASET_READY`最后写入。训练preflight逐一验证440个store的`READY`与manifest hash。
 
-## 3. Nature Portfolio系统检索协议
+### 1.1 冻结审计结果
 
-- 检索截止：执行日2026-07-18。
-- 目标来源：Nature、Nature Genetics、Nature Biotechnology、Nature Methods、Nature Machine Intelligence、Nature Communications、Communications Biology、Scientific Data及检索命中的其他Nature Portfolio期刊。
-- 补充来源：对架构、长序列算子、reverse complement（反向互补）、tokenizer、scaling（规模规律）、植物模型和泄漏控制不可替代的原始论文与官方代码。
-- 查询族：DNA/genome language model、genomic foundation model、sequence-to-function、regulatory genomics、variant effect、cross-species pretraining、plant/crop genome foundation model、reverse-complement equivariance、nucleotide tokenizer、long-context architecture、genome scaling law、homology leakage。
-- 纳入：与序列预训练、序列到功能、跨物种迁移、长上下文方法或严格评测直接相关，且元数据可核验。
-- 排除：只有新闻稿/博客、无法确认论文身份、仅临床文本而无基因组序列方法、或不能支持本项目技术结论的记录。
-- 机器检索：36个冻结查询族全部返回候选，合并得到2,958条唯一记录，Nature Portfolio题录粗筛154条。随后通过题名筛选、引文追踪和逐DOI/出版社页面核验，冻结30条核心白名单：19条核心方法、8条上下文证据、3条明确排除的Research Briefing/Highlight。
-- 核验状态：30/30题名和标识通过；Nature记录进一步核验`citation_article_type`。Crossref未返回任何`update-to`关系；这表示没有Crossref登记的更新信号，不等价于覆盖所有撤稿数据库。
-- 可重现产物：查询式、2,958条候选、30条核验记录和14篇方法矩阵分别见`metadata/literature_search_queries.json`、`data_manifests/literature_candidates.tsv`、`data_manifests/core_literature_verified.tsv`和`data_manifests/literature_evidence_matrix.tsv`。
+- 466个候选sequence store全部READY；
+- RC/contig-order/name不敏感的全序列identity得到440组，其中26个重复组、52个成员，只保留每组一个代表；
+- 31-mer MinHash对466个候选执行全局108,345对比较，而不是只在同species内比较；
+- 发现2对跨taxon标签的近重复（Pisum sativum与Lathyrus oleraceus），已进入同一near-duplicate group；
+- 66个near-duplicate group包含187个成员；
+- 无RC group或near-duplicate group跨越pretrain/cold-genus边界；
+- 574个annotation来源的统一catalog含537个普通文件和37个ZIP成员；301个primary-gene-model来源，共15,973,108个gene feature。
 
-### 核心文献证据矩阵
+### 1.2 Cold-genus合同
 
-| 文献 | 期刊/年份/DOI | 数据与物种 | tokenizer/架构/上下文 | 目标与算力 | 划分与泄漏控制 | 对本项目可复用内容 | 状态 |
-|---|---|---|---|---|---|---|---|
-| Enformer | Nature Methods 2021; `10.1038/s41592-021-01252-x` | 人/鼠，多模态功能轨道 | 单碱基one-hot；7层卷积+11层Transformer；196,608 bp | 监督Poisson损失；64 TPU v3约3天 | 1-Mb人鼠同源连通分量不跨集合 | 同源分组拆分、长程调控基线 | 全文核验 |
-| Nucleotide Transformer | Nature Methods 2024/2025; `10.1038/s41592-024-02523-z` | 3,202人基因组或850物种；多物种集不含植物 | 6-mer；6/12 kb；50M–2.5B Transformer | MLM；2.5B使用128张A100约28天 | 下游10-fold；论文承认部分比较有潜在预训练重叠 | 多物种多样性往往比单纯增参更重要 | 全文核验 |
-| AgroNT | Communications Biology 2024; `10.1038/s42003-024-06465-2` | 48种食用植物；1,050万条6-kb序列 | 6-mer；RoBERTa；1B；约6 kb | MLM；8张A100约8天 | 未提供满足本项目要求的留属预训练证据 | 直接植物基线及数据混合参考 | 全文核验 |
-| GPN | PNAS 2023; `10.1073/pnas.2311219120` | 7种Brassicales训练，完整留出拟南芥 | 单碱基；25M扩张卷积；512 bp | MLM；单A100约4天/seed | 真正leave-one-species-out（留一物种） | 小模型、物种均衡和变异效应强基线 | 全文核验 |
-| Species-aware LM | Genome Biology 2024; `10.1186/s13059-024-03221-x` | 806种真菌，完整留出Saccharomyces属 | 重叠6-mer+species token；90M；300/1,000 nt | MLM；200k steps | 留一属；未知物种需近缘proxy token | 极低成本taxon conditioning（分类群条件）证据 | 全文核验 |
-| PlantCaduceus | PNAS 2025; `10.1073/pnas.2421738122` | 16种被子植物；60.8 billion非N碱基 | 单碱基；RC等变MambaDNA；225M；512 bp | 双向语言建模；8张H100、750B tokens、约25天 | 跨物种评测并分析预训练多样性 | 单碱基+严格RC对称的植物强基线 | 全文核验 |
-| Evo 2 | Nature 2026; `10.1038/s41586-026-10176-5` | 全生命域；8.8T+碱基 | 单碱基；StripedHyena 2；8,192→1M；7B/40B | 自回归；2.4T/9.3T tokens；千卡级 | 排除真核病毒；广泛外部评测 | 分阶段扩上下文和多尺度算子证据 | 全文核验；规模不可照搬 |
-| Borzoi | Nature Genetics 2024/2025; `10.1038/s41588-024-02053-6` | 人/鼠RNA-seq及调控轨道 | one-hot；卷积+8层注意力+U-Net；524 kb→32 bp | 监督训练；2张A100约25天 | 人鼠同源区域同组划分 | RNA-seq/调控下游上限与40-GB显存边界 | 全文核验 |
-| AlphaGenome | Nature 2025/2026; `10.1038/s41586-025-10014-0` | 人/鼠，11类模态 | one-hot；U-Net+Transformer；1 Mb→最高1 bp | 监督+蒸馏；单序列跨8个TPU v3 | 四折区间测试；all-fold teacher仅用于蒸馏 | 多分辨率输出和长上下文科学上限 | 全文核验；算力不可照搬 |
-| DNA FM benchmark | Nature Communications 2025; `10.1038/s41467-025-65823-8` | 57个任务 | 比较DNABERT-2/GROVER/NT/Hyena/Caduceus | 冻结embedding+RF；单A100测速 | QTL用染色体nested CV；多数分类仍是随机70:30 | 多物种数据可增益；简单CNN常胜；无万能模型 | 全文核验；随机拆分结论降权 |
-| GPN-MSA | Nature Biotechnology 2024/2025; `10.1038/s41587-024-02511-w` | 多物种比对 | 开放正文未提取完整架构 | 比对感知变异评分 | 使用正式变异benchmark | 正式variant baseline | DOI/Brief Communication核验 |
-| HyenaDNA | NeurIPS 2023; `10.52202/075280-1872` | 人参考基因组 | 单碱基；隐式长卷积；最长1M | 自回归 | 原拆分须重新审计 | 低复杂度长上下文算子 | 官方论文核验 |
-| Caduceus | ICML 2024; PMLR v235/schiff24a | 人参考基因组 | 单碱基；双向Mamba；RC参数共享/等变；最长131 kb | 双向语言建模 | 原拆分须重新审计 | RC对称状态空间骨干 | PMLR官方页面核验 |
-| PlantGFM | Advanced Science 2026; `10.1002/advs.75772` | 植物基因组 | 报告多尺度整合；细节尚未从可访问全文提取 | 基因发现/生成 | 待代码与split审计 | 当前植物外部对手 | DOI核验；不得据摘要推断细节 |
+完整留出的六个属为：`Arachis`、`Cercis`、`Chamaecrista`、`Cicer`、`Lupinus`、`Vigna`。这些source的`sampling_weight`严格为0，不进入预训练更新，只作为后续跨属泛化合同的一部分。训练不得根据cold-genus或正式test标签调模型超参数。
 
-### 由证据约束的设计结论（尚非正式架构）
+### 1.3 采样权重
 
-1. **数据多样性优先于盲目增参。** NT、GPN、species-aware和2025 benchmark共同支持物种均衡及跨物种数据的价值；参数越大并不自动胜过小型任务模型。
-2. **单碱基与RC一致性是植物模型的高价值归纳偏置。** GPN和PlantCaduceus直接支持单碱基表示；Caduceus系模型避免把反向互补当作两个无关模式。
-3. **上下文应分阶段扩展。** Evo 2证明先短上下文预训练、再长上下文midtraining可行；Borzoi/AlphaGenome证明长程调控确有价值，但其算力不能在单A100上照搬。
-4. **分类群条件必须可退化。** species token成本极低，但未知物种依赖proxy；本项目若采用taxon conditioning，必须含`unknown`和训练期dropout，不能让身份token替代序列学习。
-5. **严格拆分高于榜单数字。** Enformer的同源连通分量、GPN整物种留出优于随机窗口；2025 benchmark中大量随机70:30结果只能作为任务可行性证据，不能证明跨物种泛化。
-6. **单A100预算迫使模型远小于AgroNT/PlantCaduceus。** 1B AgroNT需8×A100约8天，225M PlantCaduceus需8×H100约25天；正式容量必须由清洗后token量和单A100实测吞吐共同反推。
+正式pretrain source先按species做近似均衡，再按near-duplicate group size和material-version group size惩罚，最后归一化到总和1。这样可防止拥有大量版本或重复下载的物种支配token流。每次抽样先选source，再在其长度加权的callable interval中选不跨contig的窗口。随机流由checkpoint中的sampler/RNG状态控制。
 
-## 4. 当前数据事实与审计计划
+## 2. 目标与模型
 
-已在原始数据根发现四个来源目录：`legume_family`、`legumeinfo`、`soyod`和`soyomics`。Phase 1通过SLURM核实3,841个目录项、3,427个普通文件、414个symlink和209,947,381,782 bytes（195.529 GiB）普通文件；文件名规则识别到1,289个FASTA、537个注释候选和201个ZIP。严格限定为普通文件、`file_type=fasta`且处于`genome/`目录后，Phase 2注册552个组装候选、172,309,972,336 bytes（160.476 GiB压缩体量），确定性分成6个约26.746 GiB的shard。201个SoyOD ZIP另含36个genome与38个GFF archive，不能在最终清单中遗漏。
+- 模型：`LegumeGenomeFM-89M`，88,946,028参数；完整定义见`MODEL_ARCHITECTURE.md`。
+- Tokenizer：17-token单碱基IUPAC词表；正式训练窗口只含ACGT callable bases。
+- 目标：span MLM（连续片段掩码预测），mask ratio 0.15，mean span length 3。
+- RC语义：正向与反向互补共享主干并对齐平均，训练和推理一致。
+- 正式精度：BF16；目标GPU必须为compute capability 8.0或更高。
+- 并行：单进程单GPU的DDP rank，使用`torchrun`；不采用参数分片或pipeline parallel。
 
-当前已核实552个普通组装候选覆盖141 species、69 genera，taxon 552/552有来源记录；SoyOmics 27个组装由官方API直接核实（24 `Glycine max`、3 `Glycine soja`）。普通FASTA为550 PASS、2个截断gzip FAIL；PASS source共609,760,149,233 symbols，精确内容去重后479个唯一序列、527,173,283,543 symbols。Annotation 537/537文件通过读取，537/537已有候选组装配套；264个主基因模型共12,856,331个gene feature。4个主模型无gene、31个文件含malformed line、6个含非法坐标、23个含重复gene ID，已保留逐文件标记。
+## 3. 三阶段100B-token课程
 
-201个SoyOD ZIP中197个通过archive SHA-256与全部member CRC；4个压缩成员流真实截断，损失2个genome、1个protein和1个GFF。34个有效ZIP genome均通过内容审计，其中30个是普通来源的精确镜像，4个T2T为新增唯一序列。当前统一计算为584个PASS source、483个精确唯一序列、531,235,812,762个唯一symbols；这仍不是最终训练纳入量，因为材料多版本、反向互补和近重复尚未裁决。
+| Stage | Config | Context | Micro-batch/GPU | Global batch tokens | Optimizer steps | Token budget | Peak LR |
+|---|---|---:|---:|---:|---:|---:|---:|
+| 1 | `configs/pretrain_stage1.yaml` | 1,024 | 8 | 262,144 | 133,514 | 34,999,894,016 | 3e-4 |
+| 2 | `configs/pretrain_stage2.yaml` | 4,096 | 2 | 524,288 | 66,757 | 34,999,894,016 | 2e-4 |
+| 3 | `configs/pretrain_stage3.yaml` | 16,384 | 1 | 524,288 | 57,220 | 29,999,759,360 | 1e-4 |
 
-阶段化审计：
+总计：257,491 optimizer steps、99,999,547,392 tokens。每个stage的token预算都恰好被global batch tokens整除。
 
-1. Phase 1（已完成）：只读递归inventory（清单），记录相对路径、文件类型、大小、mtime、权限和不跟随的symlink（符号链接）；未在登录节点扫描序列内容。
-2. Phase 2a（已完成）：552个普通FASTA均有PASS/FAIL终态，统计长度、contig、N、GC、IUPAC字符、软掩码、N50、压缩文件SHA-256及忽略换行/大小写的序列内容SHA-256；严格聚合无missing。
-3. Phase 2b（genome已完成）：201个SoyOD ZIP均计算archive SHA-256并全读member验证CRC、安全路径、加密与异常压缩比；34个有效ZIP genome以34-way array完成FASTA内容审计。37个有效ZIP GFF仍待内容审计。
-4. Phase 3（主体已完成）：537个普通GFF/GTF流式审计、assembly配套、基因/CDS/UTR计数、坐标合法性和taxon provenance已发布；FASTA header/length对GFF seqid覆盖仍是冻结门禁。
-5. Phase 4：精确序列与反向互补去重；MinHash/比对近重复审计；材料、组装版本、物种、属和低同源隔离。
-6. Phase 5：发布不可变数据manifest、split（划分）合同、checksum和可重建shard规范。
+梯度累积步数由以下公式唯一决定：
 
-正式纳入/排除阈值必须等待Phase 2–4真实分布后冻结。当前不预设contig长度、N比例、上下文或采样权重。
+`gradient_accumulation = global_batch_tokens / (context_length × micro_batch_per_gpu × world_size)`
 
-## 5. 泄漏控制的冻结门槛
+结果必须是正整数，否则preflight拒绝启动。典型8-GPU配置中，Stage 1/2/3的累积步数分别为4、8、4。
 
-正式训练前必须验证：完全相同与反向互补重复、重叠窗口、近重复/高同源片段、同一材料多版本组装、下游标签区域、物种/属/进化分支留出及独立外部测试均有机器可读合同；任何门禁失败都阻止正式训练发布。
+## 4. 优化和调度
 
-## 6. 正式模型与训练冻结门槛
+- AdamW：`betas=(0.9, 0.95)`、`weight_decay=0.1`；
+- 2% linear warmup后cosine decay，minimum LR ratio 0.1；
+- global gradient norm clip 1.0；
+- activation checkpointing开启；
+- 正式dropout为0；
+- 日志每10步，checkpoint每500步；最终不足500步的尾部也必须写最终checkpoint。
 
-冻结前必须同时具备：经核验文献矩阵、有效训练碱基/token规模、长度分布、泄漏后物种/属贡献、RTX 2080实测兼容路径、A100 40GB理论预算及至少meta-device（仅构建不分配权重）精确参数统计。最终只允许一个模型和以下唯一值：tokenizer、最大上下文、有限多尺度集合、各尺度token配额/阶段、训练目标、精确参数量、global batch token、优化器、学习率调度、总token与终止规则。
+Stage之间是**initialize（仅加载模型参数）**：Stage 2从Stage 1最终checkpoint初始化，Stage 3从Stage 2初始化，并为新stage重新创建optimizer/scheduler/scaler。Stage内部中断是**resume（完整恢复）**：恢复模型、optimizer、scheduler、scaler、step、tokens_seen、global_microstep、RNG和sampler状态。两者不可混用。
 
-当前正式配置：**未冻结**。详见`MODEL_ARCHITECTURE.md`。
+## 5. Checkpoint与失败语义
 
-## 7. 预注册评测框架
+每个checkpoint使用临时目录写入，计算`state.pt` SHA-256并生成`receipt.json`，最后写`READY`后原子rename。恢复前必须验证READY、receipt、state hash、config hash和实现closure hash。
 
-核心benchmark（基准评测）将在预训练前冻结，至少完成12个高质量任务并覆盖六层：碱基/基因结构、顺式调控、表达/功能、变异效应、比较基因组迁移和育种应用。候选注册池不少于18个独立问题。每项必须定义困难负样本、输入尺度、标签来源、同物种/留一物种/留一属/低同源/外部划分、随机初始化同架构、通用模型、植物模型、参数或算力匹配对照、重复种子、置信区间、显著性检验和泄漏审计。正式测试集不用于逐checkpoint选择。
+- FP16/BF16出现非有限loss或梯度时，本次更新不得增加optimizer step或tokens_seen；
+- world size可以在恢复时变化，但global batch tokens与配置合同不变；
+- `MODE=fresh`拒绝已有output目录，防止覆盖旧run；
+- `MODE=resume`要求output内已有READY checkpoint；
+- `MODE=initialize`要求显式`INITIALIZE_FROM`且新output不存在；
+- 校验失败只停止本任务，不删除已有checkpoint或数据。
 
-## 8. 计算、迁移与图件
+## 6. AutoDL启动流程
 
-- 登录节点仅做轻量检查、代码编辑、网络检索和SLURM控制。
-- 普通CPU/IO任务优先使用`q02–q05`并可按实时空闲资源超过6路并行；`fat`是稀缺大内存节点，除非实测内存超出普通节点且确认空闲，否则不占用。
-- 当前GPU开发仅用RTX 2080 Ti；启动前核验显存、utilization（利用率）、compute进程和设备持有者。正式环境PyTorch `2.5.1+cu124`已在动态空闲2080上完成FP16 CUDA smoke。
-- A100未获本阶段使用授权。
-- `figures/figure_manifest.tsv`记录图号、脚本、源数据和输出；无真实结果时不生成伪数据图。
-- AutoDL包必须提供锁定环境、manifest/checksum、自检、bootstrap、单/多卡启动和resume（恢复）命令。
-
-## 9. 成功、失败与停止标准
-
-最低成功要求是：严格外部/跨属/低同源测试上，相比强通用和植物模型在预注册任务族中呈现统计稳定且非单任务驱动的优势，同时训练稳定、无已知泄漏且可迁移复现。若豆科专属预训练在公平等算力比较中无一致收益、关键数据许可证不可用、泄漏无法消除、或算力预算与收益不匹配，则停止扩大训练并重新评估科学主张。数值阈值待数据规模和baseline实测后冻结。
-
-## 10. 当前可执行命令
+release布局为`AUTODL_RELEASE_MANIFEST.json + project/`。正式release携带：Git跟踪代码、冻结manifest、440个被选2-bit store和可重定位的离线CUDA环境归档。
 
 ```sh
-PYTHON_BIN=/path/to/python scripts/submit_fasta_qc.sh
-PYTHON_BIN=/path/to/python scripts/submit_annotation_qc.sh
-PYTHON_BIN=/path/to/python scripts/submit_zip_audit.sh
-PYTHON_BIN=/path/to/python scripts/submit_archive_genome_qc.sh
+# 1. 迁移后先做完整校验（首次/传输后必须deep）
+python3 project/scripts/verify_autodl_release.py \
+  --release-root "$PWD" --deep
+
+# 2. 若尚未创建环境，离线解包并重定位
+sh project/environment/bootstrap_autodl.sh
+
+# 3. Stage 1 fresh start；NPROC_PER_NODE改为实际可用GPU数
+MODE=fresh NPROC_PER_NODE=8 CONFIG=project/configs/pretrain_stage1.yaml \
+  project/scripts/autodl_launch.sh
+
+# Stage 1中断后的完整恢复
+MODE=resume NPROC_PER_NODE=8 CONFIG=project/configs/pretrain_stage1.yaml \
+  project/scripts/autodl_launch.sh
+
+# Stage 2模型初始化示例
+MODE=initialize INITIALIZE_FROM=/absolute/path/to/stage1/final_checkpoint \
+  NPROC_PER_NODE=8 CONFIG=project/configs/pretrain_stage2.yaml \
+  project/scripts/autodl_launch.sh
 ```
 
-这些入口均只读访问`DATA_ROOT`，运行时注入portable路径并写入绝对SLURM日志位置；当前任务分别使用`q03/q04/q02`，均无GPU。正式提交记录见`TRAINING_PROGRESS.md`。
+`autodl_launch.sh`会先运行release quick verification，再检查dataset release、440个store、模式互斥、world-size整除、CUDA数量、BF16能力以及每卡至少6,000 MiB空闲显存，并写原子preflight receipt；只有全部PASS才执行`torchrun`。
+
+## 7. 评测与模型选择
+
+正式矩阵位于`configs/evaluation_matrix.yaml`，包含20项任务和内部/外部/任务专用基线。共同泄漏分组为orientation group、near-duplicate group、material key和chromosome-homology component。
+
+- 训练期间可在checkpoint上运行轻量diagnostic，但不得用formal test选择模型；
+- medium validation benchmark只运行预选候选checkpoint；
+- formal test在模型、超参数和选择规则全部冻结后仅运行一次正式流程；
+- 必报in-distribution、leave-one-species-out、cold-genus、low-homology，以及frozen encoder/full finetune；
+- 外部模型只在公开权重、许可证、输入语义和可复现实装核验后进入主表；
+- 任何smoke loss或单步结果都不是论文性能。
+
+## 8. 开始训练的最终判定
+
+只有以下条件同时满足才可称为“可以开始正式训练”：
+
+1. Git main与release manifest绑定同一commit；
+2. dataset release READY、440个store和125-GB级payload全部deep PASS；
+3. 离线环境archive解包、`conda-unpack`和核心import PASS；
+4. AutoDL目标GPU通过BF16/显存/world-size preflight；
+5. fresh output目录不存在，或resume/initialize路径明确且READY；
+6. 启动命令和preflight receipt已归档。
+
+AutoDL具体GPU型号和数量在迁移前未知，因此本文不虚构吞吐、walltime或费用；首次目标机preflight和短profiling之后再补实测ETA。
