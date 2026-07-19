@@ -342,6 +342,7 @@ def run_training(
     log_path = Path(config.output_dir) / "metrics.jsonl"
     tokens_at_start = tokens_seen
     started = time.monotonic()
+    consecutive_overflows = 0
     try:
         while step < target_steps:
             optimizer.zero_grad(set_to_none=True)
@@ -383,8 +384,35 @@ def run_training(
             lr = _learning_rate(config, tokens_after_step)
             for group in optimizer.param_groups:
                 group["lr"] = lr
+            scale_before_step = scaler.get_scale()
             scaler.step(optimizer)
             scaler.update()
+            overflow_skipped = scaler.is_enabled() and scaler.get_scale() < scale_before_step
+            if world_size > 1:
+                overflow_count = torch.tensor(int(overflow_skipped), device=device)
+                dist.all_reduce(overflow_count, op=dist.ReduceOp.SUM)
+                if int(overflow_count.item()) not in {0, world_size}:
+                    raise RuntimeError("gradient-overflow decision diverged across DDP ranks")
+            if overflow_skipped:
+                consecutive_overflows += 1
+                if rank == 0:
+                    _append_jsonl(
+                        log_path,
+                        {
+                            "event": "gradient_overflow_retry",
+                            "global_microstep": global_microstep,
+                            "scale_before": scale_before_step,
+                            "scale_after": scaler.get_scale(),
+                            "consecutive_overflows": consecutive_overflows,
+                            "world_size": world_size,
+                        },
+                    )
+                if world_size > 1:
+                    dist.barrier()
+                if consecutive_overflows > 8:
+                    raise RuntimeError("more than 8 consecutive gradient-overflow retries")
+                continue
+            consecutive_overflows = 0
             step += 1
             tokens_seen = tokens_after_step
             local_loss = torch.tensor(accumulated_loss / accumulation_steps, device=device)
