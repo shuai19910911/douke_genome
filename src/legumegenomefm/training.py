@@ -127,6 +127,16 @@ def _validate_config(config: TrainConfig, world_size: int) -> int:
     return config.global_batch_tokens // tokens_per_microstep
 
 
+def _resolve_device(device_override: str | None, local_rank: int) -> torch.device:
+    if device_override == "cuda":
+        return torch.device("cuda", local_rank)
+    if device_override is not None:
+        return torch.device(device_override)
+    if torch.cuda.is_available():
+        return torch.device("cuda", local_rank)
+    return torch.device("cpu")
+
+
 def _checkpoint_valid(path: Path, expected_config_hash: str) -> tuple[bool, dict[str, object] | None]:
     try:
         receipt_bytes = (path / "receipt.json").read_bytes()
@@ -262,13 +272,9 @@ def run_training(
         dist.init_process_group(backend=backend)
         initialized_here = True
     accumulation_steps = _validate_config(config, world_size)
-    if device_override is not None:
-        device = torch.device(device_override)
-    elif torch.cuda.is_available():
-        device = torch.device("cuda", local_rank)
+    device = _resolve_device(device_override, local_rank)
+    if device.type == "cuda":
         torch.cuda.set_device(device)
-    else:
-        device = torch.device("cpu")
     if device.type == "cpu" and config.precision != "fp32":
         raise ValueError("CPU training requires fp32 precision")
     if device.type == "cuda" and config.precision == "bf16" and not torch.cuda.is_bf16_supported():

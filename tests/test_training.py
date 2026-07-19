@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from legumegenomefm.sequence_store import PackedSequenceStoreWriter
-from legumegenomefm.training import TrainConfig, run_training
+from legumegenomefm.training import TrainConfig, _resolve_device, run_training
 from legumegenomefm.training_data import build_training_manifest
 
 
@@ -97,3 +97,8 @@ def test_training_contract_rejects_nondivisible_global_batch(tmp_path: Path) -> 
         assert "divisible" in str(exc)
     else:
         raise AssertionError("nondivisible global batch was accepted")
+
+
+def test_cuda_override_preserves_distributed_local_rank() -> None:
+    assert str(_resolve_device("cuda", 0)) == "cuda:0"
+    assert str(_resolve_device("cuda", 1)) == "cuda:1"
