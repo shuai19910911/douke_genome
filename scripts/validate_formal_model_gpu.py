@@ -6,7 +6,6 @@ import hashlib
 import json
 import math
 import os
-import subprocess
 from pathlib import Path
 
 import torch
@@ -24,16 +23,13 @@ def atomic_json(path: Path, payload: dict[str, object]) -> None:
     os.replace(temporary, path)
 
 
-def git_head(project_root: Path) -> str:
-    return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=project_root, text=True).strip()
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate the frozen formal model on one real genome batch")
     parser.add_argument("--dataset-manifest", required=True, type=Path)
     parser.add_argument("--project-root", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--gpu-uuid", required=True)
+    parser.add_argument("--git-commit", required=True)
     parser.add_argument("--context-length", type=int, default=1024)
     parser.add_argument("--micro-batch-size", type=int, default=1)
     parser.add_argument("--memory-fraction", type=float, default=0.25)
@@ -89,7 +85,7 @@ def main() -> int:
     result = {
         "schema_version": "1.0",
         "state": "PASS",
-        "git_commit": git_head(args.project_root),
+        "git_commit": args.git_commit,
         "dataset_manifest_sha256": hashlib.sha256(args.dataset_manifest.read_bytes()).hexdigest(),
         "gpu_name": properties.name,
         "gpu_uuid": args.gpu_uuid,
