@@ -1,0 +1,196 @@
+schema_version: "1.0"
+frozen_on: "2026-07-19"
+pretraining_cold_genera: [Arachis, Cercis, Chamaecrista, Cicer, Lupinus, Vigna]
+common_leakage_groups:
+  - orientation_group_id
+  - near_duplicate_group_id
+  - material_key
+  - chromosome_homology_component
+required_reporting:
+  - in_distribution
+  - leave_one_species_out
+  - cold_genus
+  - low_homology
+  - frozen_encoder
+  - full_finetune
+baseline_suite:
+  internal:
+    - random_init_same_architecture
+    - single_species_pretraining_same_budget
+    - no_reverse_complement_symmetrization
+    - single_context_4096_same_token_budget
+    - unbalanced_species_sampling
+  external:
+    - GPN
+    - AgroNT
+    - Nucleotide_Transformer_v2_50M
+    - PlantCaduceus
+    - Caduceus
+    - HyenaDNA
+    - PlantGFM_if_public_weights_and_license_verified
+  task_specific:
+    - one_hot_CNN
+    - gradient_boosted_kmer_features
+    - established_bioinformatics_tool
+selection_rule: validation_only; formal test labels remain sealed until model and hyperparameters are frozen
+tasks:
+  - id: splice_donor
+    category: base
+    core: true
+    availability: buildable_from_frozen_annotation
+    unit: candidate dinucleotide with 512-bp context
+    labels: GFF exon-intron donor boundaries
+    split: cold_genus plus gene-family homology component
+    metrics: [auPRC, auROC, MCC]
+  - id: splice_acceptor
+    category: base
+    core: true
+    availability: buildable_from_frozen_annotation
+    unit: candidate dinucleotide with 512-bp context
+    labels: GFF intron-exon acceptor boundaries
+    split: cold_genus plus gene-family homology component
+    metrics: [auPRC, auROC, MCC]
+  - id: translation_start
+    category: base
+    core: true
+    availability: buildable_from_frozen_annotation
+    unit: candidate ATG with 1024-bp context
+    labels: primary-CDS starts from paired genome/GFF
+    split: cold_genus plus gene-family homology component
+    metrics: [auPRC, MCC]
+  - id: translation_stop
+    category: base
+    core: true
+    availability: buildable_from_frozen_annotation
+    unit: candidate stop codon with 1024-bp context
+    labels: primary-CDS stops from paired genome/GFF
+    split: cold_genus plus gene-family homology component
+    metrics: [auPRC, MCC]
+  - id: promoter_tss
+    category: region
+    core: true
+    availability: buildable_from_frozen_annotation
+    unit: 2048-bp region
+    labels: annotated gene 5-prime boundaries; proxy label explicitly reported
+    split: cold_genus plus gene-family homology component
+    metrics: [auPRC, auROC]
+  - id: gene_body_segmentation
+    category: region
+    core: true
+    availability: buildable_from_frozen_annotation
+    unit: 16384-bp sequence with per-base states
+    labels: intergenic, UTR, CDS and intron states from GFF
+    split: chromosome-level cold-genus folds
+    metrics: [macro_F1, boundary_F1, segment_IoU]
+  - id: exon_intron_boundary
+    category: region
+    core: true
+    availability: buildable_from_frozen_annotation
+    unit: 4096-bp sequence
+    labels: exon and intron intervals from GFF
+    split: gene-family homology component
+    metrics: [macro_F1, boundary_F1]
+  - id: coding_frame
+    category: gene
+    core: true
+    availability: buildable_from_frozen_annotation
+    unit: annotated CDS candidate
+    labels: GFF phase-consistent primary CDS
+    split: cold_genus plus protein-homology component
+    metrics: [accuracy, macro_F1]
+  - id: ortholog_retrieval
+    category: gene
+    core: true
+    availability: buildable_from_frozen_genome_annotation_protein
+    unit: full gene locus embedding
+    labels: orthogroups rebuilt from paired primary proteins
+    split: query genus excluded from gallery training
+    metrics: [recall_at_1, recall_at_10, MRR]
+  - id: low_homology_gene_function
+    category: gene
+    core: true
+    availability: pending_official_GO_mapping
+    unit: full gene locus
+    labels: curator-backed GO terms; electronically inferred labels excluded from formal test
+    split: protein identity below 30 percent across train-test
+    metrics: [macro_auPRC, micro_auPRC, Fmax]
+  - id: zero_shot_variant_constraint
+    category: variant
+    core: true
+    availability: pending_official_population_variants
+    unit: reference and alternate allele window
+    labels: allele-frequency matched constrained versus common variants
+    split: cold chromosome and cold genus; no model selection on test variants
+    metrics: [auROC, auPRC, Spearman]
+  - id: deleterious_variant_priority
+    category: variant
+    core: true
+    availability: pending_curated_functional_variants
+    unit: reference and alternate allele window
+    labels: experimentally supported deleterious versus frequency-matched neutral variants
+    split: gene-family and material grouped
+    metrics: [auPRC, auROC, NDCG]
+  - id: chromatin_accessibility
+    category: regulatory
+    core: false
+    availability: pending_official_ATAC_DNase_tracks
+    unit: 2048-bp region
+    labels: tissue-specific ATAC-seq or DNase peaks
+    split: chromosome nested within accession and tissue
+    metrics: [auPRC, auROC]
+  - id: transcription_factor_binding
+    category: regulatory
+    core: false
+    availability: pending_curated_DAP_ChIP_tracks
+    unit: 1024-bp region
+    labels: TF-specific DAP-seq or ChIP-seq peaks
+    split: chromosome and motif-family grouped
+    metrics: [auPRC, auROC]
+  - id: gene_expression
+    category: regulatory
+    core: false
+    availability: pending_official_expression_atlas
+    unit: promoter plus gene locus
+    labels: log-transformed tissue expression with accession covariates
+    split: cold accession and cold tissue; no replicate leakage
+    metrics: [Pearson, Spearman, R2]
+  - id: eqtl_prioritization
+    category: variant
+    core: false
+    availability: pending_official_eQTL_summary_statistics
+    unit: variant-gene pair
+    labels: fine-mapped cis-eQTL credible sets
+    split: chromosome and LD block grouped
+    metrics: [auPRC, NDCG, recall_at_10]
+  - id: genomic_prediction
+    category: breeding
+    core: false
+    availability: pending_genotype_phenotype_cohort
+    unit: accession genotype plus frozen sequence embeddings
+    labels: multi-environment quantitative traits
+    split: nested family or population-group CV with final sealed cohort
+    metrics: [Pearson, R2, normalized_RMSE]
+  - id: allele_specific_expression
+    category: breeding
+    core: false
+    availability: pending_phased_RNA_seq
+    unit: heterozygous regulatory variant
+    labels: replicate-aware allelic imbalance
+    split: material and gene-family grouped
+    metrics: [auPRC, Pearson]
+  - id: distal_promoter_gene_link
+    category: long_context
+    core: false
+    availability: pending_3D_or_perturbation_labels
+    unit: promoter-candidate region pair up to 16384 bp
+    labels: experimentally supported links only
+    split: chromosome and gene-family grouped
+    metrics: [auPRC, recall_at_10]
+  - id: synteny_break_classification
+    category: comparative
+    core: false
+    availability: buildable_after_frozen_pairwise_synteny
+    unit: homologous genomic block pair
+    labels: conserved versus rearranged blocks
+    split: complete species-pair holdout
+    metrics: [macro_F1, auPRC]

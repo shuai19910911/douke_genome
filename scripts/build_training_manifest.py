@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 from pathlib import Path
 
@@ -35,6 +36,10 @@ def main() -> int:
     candidate_ids = {candidate.candidate_id for candidate in candidates}
     if set(orientations) != candidate_ids:
         raise ValueError("orientation assignments do not match sketch registry")
+    included = [candidate for candidate in candidates if orientations[candidate.candidate_id]["orientation_representative"] == "True"]
+    material_groups: dict[tuple[str, str], list[str]] = {}
+    for candidate in included:
+        material_groups.setdefault((candidate.species, candidate.material_key), []).append(candidate.candidate_id)
     for candidate in candidates:
         orientation = orientations[candidate.candidate_id]
         if orientation["orientation_representative"] != "True":
@@ -42,12 +47,16 @@ def main() -> int:
         cluster = clusters.get(candidate.candidate_id)
         if cluster is None:
             raise ValueError(f"missing near-duplicate assignment: {candidate.candidate_id}")
+        material_members = material_groups[(candidate.species, candidate.material_key)]
+        material_digest = hashlib.sha256(f"{candidate.species}\0{candidate.material_key}".encode("utf-8")).hexdigest()[:16]
         source_rows.append(
             {
                 "candidate_id": candidate.candidate_id,
                 "genus": candidate.species.split()[0],
                 "species": candidate.species,
                 "material_key": candidate.material_key,
+                "material_version_group_id": f"material-{material_digest}",
+                "material_version_group_size": len(material_members),
                 "near_duplicate_group_id": cluster["near_duplicate_group_id"],
                 "near_duplicate_group_size": int(cluster["near_duplicate_group_size"]),
             }

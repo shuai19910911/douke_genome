@@ -74,6 +74,8 @@ def build_training_manifest(
                 "genus": genus,
                 "species": str(source["species"]),
                 "material_key": str(source["material_key"]),
+                "material_version_group_id": str(source.get("material_version_group_id", f"material-{candidate_id}")),
+                "material_version_group_size": int(source.get("material_version_group_size", 1)),
                 "near_duplicate_group_id": str(source["near_duplicate_group_id"]),
                 "near_duplicate_group_size": int(source["near_duplicate_group_size"]),
                 "split": split,
@@ -99,7 +101,7 @@ def build_training_manifest(
     for species, members in by_species.items():
         within = [
             math.sqrt(int(source["callable_bases"]))
-            / math.sqrt(int(source["near_duplicate_group_size"]))
+            / math.sqrt(max(int(source["near_duplicate_group_size"]), int(source["material_version_group_size"])))
             for source in members
         ]
         within_total = sum(within)
@@ -115,6 +117,7 @@ def build_training_manifest(
             "species_callable_base_temperature": 0.3,
             "within_species_callable_base_temperature": 0.5,
             "near_duplicate_group_penalty": 0.5,
+            "material_version_group_penalty": 0.5,
         },
         "sources": frozen,
     }
