@@ -1,6 +1,6 @@
 # LegumeGenomeFM：实时执行进度
 
-> 最后更新：2026-07-20 16:24 CST（UTC+08:00）。当前阶段：**精简数据深审＋超长架构候选实现**。正式训练未开始；旧440-source release和旧89M/16K训练合同均已撤销。
+> 最后更新：2026-07-20 16:41 CST（UTC+08:00）。当前阶段：**精简数据深审＋超长架构候选实现**。正式训练未开始；旧440-source release和旧89M/16K训练合同均已撤销。
 
 ## 1. 状态总览
 
@@ -44,11 +44,11 @@
 
 ## 3. SLURM状态
 
-用户当前资源规则：不使用`fat`，暂时不向`cu`提交CPU任务。所有本轮脚本和repair/controller均限定`q02,q03,q04,q05`。
+用户当前资源硬规则：只允许向`q02,q03,q04,q05`提交；`cu`和`fat`均禁止且不得作为回退。所有项目submitter、sbatch默认值和Python repair/controller均已锁死到该允许列表，不能通过`PARTITION(S)`环境变量绕过。
 
 当前持久链：
 
-| Job | 作用 | CPU/内存 | 分区 | 状态（16:24 CST） |
+| Job | 作用 | CPU/内存 | 分区 | 状态（16:41 CST） |
 |---:|---|---|---|---|
 | 8605100 | 首轮Tiara/UniVec补算16项 | 4 CPU / 32G | q02–q05 | PENDING (Priority) |
 | 8605101 | 首轮protein BUSCO补算24项 | 4 CPU / 8G | q02–q05 | PENDING (Priority) |
@@ -56,7 +56,7 @@
 | 8605103 | 持久split-QC控制器 | 1 CPU / 2G | q02–q05 | PENDING (Dependency) |
 | 8605119 | BUSCO/污染/最终代表/capacity聚合 | 4 CPU / 32G | q02–q05 | PENDING (afterok 8605103) |
 
-8-CPU元素在节点碎片条件下预计等待更久，已在未运行时取消并改为4 CPU；BUSCO质量参数未改变。持久控制器依赖首轮数组结束，之后只补missing/invalid shard。当前没有本人`cu` CPU任务。
+8-CPU元素在节点碎片条件下预计等待更久，已在未运行时取消并改为4 CPU；BUSCO质量参数未改变。持久控制器依赖首轮数组结束，之后只补missing/invalid shard。当前没有本人`cu/fat`项目任务；Hermes cron `c9692ecd758e`每10分钟只读检查`q02–q05`资源和项目链，并对任何后续补算维持同一硬门禁。
 
 ## 4. 本轮代码与合同
 
@@ -114,7 +114,7 @@ Git：`main`；每个里程碑均核对本地HEAD与`origin/main`一致，除正
 - 数据精简单文件：20 passed；
 - HierMamba＋training preflight：13 passed；
 - 最近一次preflight单文件：10 passed；
-- 完整`pytest`：147 passed（121.47 s）；同时BUSCO 708 MiB full-tree verifier、Tiara/UniVec/BLAST full verifier、Python编译、shell语法和`git diff --check`均PASS。上一轮YAML/JSON全解析亦PASS。
+- 完整`pytest`：148 passed（37.73 s）；同时BUSCO 708 MiB full-tree verifier、Tiara/UniVec/BLAST full verifier、Python编译、shell语法、全项目SLURM分区门禁和`git diff --check`均PASS。上一轮YAML/JSON全解析亦PASS。
 
 本轮在release闭包审计中发现并修复一个关键坐标问题：sequence store的callable interval使用全局packed offset，而Tiara/UniVec mask使用单条FASTA record本地坐标。finalizer现在先将callable interval转换为record-local坐标再扣mask，并同时输出`record_start_0based`与`store_start`。新增schema-2 manifest只嵌入这些最终区间，sampler和preflight均验证坐标、callable包含关系与六长度capacity。
 

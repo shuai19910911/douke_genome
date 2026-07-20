@@ -5,7 +5,7 @@ DATA_ROOT=${DATA_ROOT:-${PROJECT_ROOT}/data/raw}
 REGISTRY=${REGISTRY:-${PROJECT_ROOT}/data_manifests/archive_annotation_candidates.tsv}
 OUTPUT_ROOT=${OUTPUT_ROOT:-${PROJECT_ROOT}/data_manifests/archive_annotation_qc_results}
 PYTHON_BIN=${PYTHON_BIN:-python3}
-PARTITIONS=${PARTITIONS:-q02,q03,q04,q05}
+PARTITIONS=q02,q03,q04,q05
 THROTTLE=${THROTTLE:-37}
 COUNT=$(($(wc -l < "$REGISTRY") - 1))
 if [ "$COUNT" -le 0 ]; then echo "empty archive annotation registry" >&2; exit 2; fi

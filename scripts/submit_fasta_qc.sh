@@ -6,7 +6,7 @@ DATA_ROOT=${DATA_ROOT:-${PROJECT_ROOT}/data/raw}
 SHARD_ROOT=${SHARD_ROOT:-${PROJECT_ROOT}/data_manifests/assembly_qc_shards}
 OUTPUT_ROOT=${OUTPUT_ROOT:-${PROJECT_ROOT}/data_manifests/fasta_qc_results}
 PYTHON_BIN=${PYTHON_BIN:-$(command -v python3)}
-PARTITION=${PARTITION:-q03}
+PARTITIONS=q02,q03,q04,q05
 
 [ -d "$DATA_ROOT" ] || { printf 'missing data root: %s\n' "$DATA_ROOT" >&2; exit 2; }
 [ -x "$PYTHON_BIN" ] || { printf 'invalid Python: %s\n' "$PYTHON_BIN" >&2; exit 2; }
@@ -16,7 +16,7 @@ done
 mkdir -p "${PROJECT_ROOT}/logs/slurm" "$OUTPUT_ROOT"
 
 job_id=$(sbatch --parsable \
-  --partition="$PARTITION" \
+  --partition="$PARTITIONS" \
   --chdir="$PROJECT_ROOT" \
   --output="${PROJECT_ROOT}/logs/slurm/fasta_qc-%A_%a.out" \
   --error="${PROJECT_ROOT}/logs/slurm/fasta_qc-%A_%a.err" \

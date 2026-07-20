@@ -3,6 +3,7 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ALLOWED_CPU_PARTITIONS = {"q02", "q03", "q04", "q05"}
 
 
 def test_inventory_sbatch_is_posix_portable_and_requires_runtime_roots() -> None:
@@ -17,7 +18,27 @@ def test_inventory_sbatch_is_posix_portable_and_requires_runtime_roots() -> None
     assert "OUTPUT_ROOT=${OUTPUT_ROOT:?" in text
     assert "PYTHON_BIN=${PYTHON_BIN:?" in text
     assert "scripts/inventory_raw_data.py" in text
-    assert "#SBATCH -p fat" in text
+    assert "#SBATCH -p q02,q03,q04,q05" in text
+
+
+def test_all_slurm_submission_paths_are_locked_to_non_cu_non_fat_partitions() -> None:
+    slurm_dir = PROJECT_ROOT / "scripts/slurm"
+    for path in slurm_dir.glob("*.sbatch"):
+        text = path.read_text()
+        for value in re.findall(r"^#SBATCH\s+(?:-p\s+|--partition(?:=|\s+))(\S+)", text, flags=re.MULTILINE):
+            assert set(value.split(",")) <= ALLOWED_CPU_PARTITIONS, (path, value)
+
+    for path in (PROJECT_ROOT / "scripts").glob("submit*.sh"):
+        text = path.read_text()
+        assert "PARTITION=${PARTITION:-" not in text, path
+        assert "PARTITIONS=${PARTITIONS:-" not in text, path
+        for value in re.findall(r"^PARTITIONS?=([^\s]+)$", text, flags=re.MULTILINE):
+            assert set(value.split(",")) <= ALLOWED_CPU_PARTITIONS, (path, value)
+
+    for path in (PROJECT_ROOT / "scripts").glob("*.py"):
+        text = path.read_text()
+        for value in re.findall(r'"--partition=([^"\s]+)"', text):
+            assert set(value.split(",")) <= ALLOWED_CPU_PARTITIONS, (path, value)
 
 
 def test_inventory_submitter_sets_absolute_log_paths_without_hardcoded_host() -> None:
@@ -121,7 +142,7 @@ def test_archive_genome_qc_slurm_chain_uses_ordinary_non_cu_partitions() -> None
     assert "SLURM_ARRAY_TASK_ID" in sbatch_text
     assert "audit_archive_genome.py" in sbatch_text
     assert submit_text.startswith("#!/bin/sh\nset -eu\n")
-    assert "PARTITIONS=${PARTITIONS:-q02,q03,q04,q05}" in submit_text
+    assert "PARTITIONS=q02,q03,q04,q05" in submit_text
     assert "fat" not in submit_text
     assert "--array=" in submit_text
     assert "archive_genome_qc-%A_%a.out" in submit_text
@@ -144,7 +165,7 @@ def test_archive_annotation_qc_slurm_chain_uses_dynamic_ordinary_array() -> None
     assert "SLURM_ARRAY_TASK_ID" in sbatch_text
     assert "audit_archive_annotation.py" in sbatch_text
     assert submit_text.startswith("#!/bin/sh\nset -eu\n")
-    assert "PARTITIONS=${PARTITIONS:-q02,q03,q04,q05}" in submit_text
+    assert "PARTITIONS=q02,q03,q04,q05" in submit_text
     assert "fat" not in submit_text
     assert '--array="0-${LAST}%${THROTTLE}"' in submit_text
     assert "archive-annotation-%A_%a.out" in submit_text

@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH -J lgfm_inventory
-#SBATCH -p fat
+#SBATCH -p q02,q03,q04,q05
 #SBATCH -c 2
 #SBATCH --mem=8G
 #SBATCH -t 02:00:00

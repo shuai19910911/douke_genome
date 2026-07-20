@@ -339,7 +339,7 @@ release采用manifest＋SHA-256＋最后READY。迁移后先deep verify，再离
 以下命令均从项目根目录执行；正式训练命令在合同冻结前故意不存在。
 
 ```sh
-# 查看本人的SLURM任务；当前CPU任务限定q02–q05
+# 查看本人的SLURM任务；CPU任务硬限制为q02–q05
 squeue -u "$USER"
 
 # 定点测试
@@ -356,5 +356,7 @@ PYTHONPATH="$PWD/src" python scripts/merge_busco_mode_shards.py \
 # 全测试；正式发布前必须通过
 PYTHONPATH="$PWD/src" python -m pytest
 ```
+
+SLURM分区允许列表固定为`q02,q03,q04,q05`。`cu`和`fat`不属于回退选项：即使允许分区因Priority/Resources等待，也不得迁移或重提到`cu/fat`。所有项目内submitter、sbatch默认值和Python controller均由回归测试锁定到该允许列表；持久监控每10分钟检查资源、作业分区和流水线状态。
 
 任何配置只有`contract_status: frozen`且对应receipt闭合时才可进入launcher。

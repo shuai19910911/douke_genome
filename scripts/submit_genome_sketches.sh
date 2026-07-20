@@ -6,7 +6,7 @@ REGISTRY=${REGISTRY:-${PROJECT_ROOT}/data_manifests/genome_sketch_candidates.tsv
 OUTPUT_ROOT=${OUTPUT_ROOT:-${PROJECT_ROOT}/data_manifests/genome_sketch_results}
 STORE_ROOT=${STORE_ROOT:-${PROJECT_ROOT}/data/processed/sequence_store}
 PYTHON_BIN=${PYTHON_BIN:-python3}
-PARTITIONS=${PARTITIONS:-q02,q03,q04,q05}
+PARTITIONS=q02,q03,q04,q05
 THROTTLE=${THROTTLE:-48}
 COUNT=$(($(wc -l < "$REGISTRY") - 1))
 if [ "$COUNT" -le 0 ]; then echo "empty genome sketch registry" >&2; exit 2; fi

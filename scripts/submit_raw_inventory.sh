@@ -5,7 +5,7 @@ PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 DATA_ROOT=${DATA_ROOT:-${PROJECT_ROOT}/data/raw}
 OUTPUT_ROOT=${OUTPUT_ROOT:-${PROJECT_ROOT}/data_manifests}
 PYTHON_BIN=${PYTHON_BIN:-$(command -v python3)}
-PARTITION=${PARTITION:-fat}
+PARTITIONS=q02,q03,q04,q05
 LOG_DIR=${PROJECT_ROOT}/logs/slurm
 
 [ -d "${DATA_ROOT}" ]
@@ -13,7 +13,7 @@ LOG_DIR=${PROJECT_ROOT}/logs/slurm
 mkdir -p "${LOG_DIR}" "${OUTPUT_ROOT}"
 
 JOB_ID=$(sbatch --parsable \
-    --partition="${PARTITION}" \
+    --partition="${PARTITIONS}" \
     --chdir="${PROJECT_ROOT}" \
     --output="${LOG_DIR}/raw_inventory-%j.out" \
     --error="${LOG_DIR}/raw_inventory-%j.err" \
