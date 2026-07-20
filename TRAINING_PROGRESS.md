@@ -1,6 +1,6 @@
 # LegumeGenomeFM：实时执行进度
 
-> 最后更新：2026-07-20 15:28 CST（UTC+08:00）。当前阶段：**精简数据深审＋超长架构候选实现**。正式训练未开始；旧440-source release和旧89M/16K训练合同均已撤销。
+> 最后更新：2026-07-20 15:52 CST（UTC+08:00）。当前阶段：**精简数据深审＋超长架构候选实现**。正式训练未开始；旧440-source release和旧89M/16K训练合同均已撤销。
 
 ## 1. 状态总览
 
@@ -13,7 +13,7 @@
 | assembly/annotation初筛 | 已完成 | 167个深审候选；`data_refinement_candidates*` |
 | FASTA–GFF闭合 | 已完成 | 165 PASS、2 FAIL |
 | source provenance/license | 已完成但有排除 | 94 PASS；67需许可证审核、3 incomplete、3 no resolver |
-| BUSCO | 正在排队/运行链已建立 | 92个任务；当前2个双模式PASS |
+| BUSCO | 正在排队/运行链已建立 | 92个任务；2个未绑定lineage receipt的旧PASS已撤销，当前0个合同绑定双模式shard |
 | Tiara/UniVec污染审计 | 正在排队/运行链已建立 | 92个任务；当前55个有效shard |
 | 最终代表与六长度capacity | 未开始 | 等BUSCO/污染完整聚合；中黄13 alias已统一 |
 | 精简data release | 未开始 | 旧440-source READY/manifest已删除 |
@@ -48,13 +48,13 @@
 
 当前持久链：
 
-| Job | 作用 | CPU/内存 | 分区 | 状态（14:10 CST） |
+| Job | 作用 | CPU/内存 | 分区 | 状态（15:52 CST） |
 |---:|---|---|---|---|
 | 8605100 | 首轮Tiara/UniVec补算16项 | 4 CPU / 32G | q02–q05 | PENDING (Priority) |
 | 8605101 | 首轮protein BUSCO补算24项 | 4 CPU / 8G | q02–q05 | PENDING (Priority) |
 | 8605102 | 首轮genome BUSCO tiny补算16项 | 4 CPU / 48G | q02–q05 | PENDING (Priority) |
 | 8605103 | 持久split-QC控制器 | 1 CPU / 2G | q02–q05 | PENDING (Dependency) |
-| 8605104 | BUSCO/污染/最终代表/capacity聚合 | 4 CPU / 32G | q02–q05 | PENDING (afterok 8605103) |
+| 8605105 | BUSCO/污染/最终代表/capacity聚合 | 4 CPU / 32G | q02–q05 | PENDING (afterok 8605103) |
 
 8-CPU元素在节点碎片条件下预计等待更久，已在未运行时取消并改为4 CPU；BUSCO质量参数未改变。持久控制器依赖首轮数组结束，之后只补missing/invalid shard。当前没有本人`cu` CPU任务。
 
@@ -65,6 +65,7 @@
 - 新增assembly/annotation/来源/BUSCO/污染/最终选择模块和回归测试；
 - worker独立写JSON shard，聚合器严格检查missing/extra/duplicate；
 - BUSCO在节点scratch目录运行，不再向项目根散落`busco_*.log`；
+- `eudicots_odb10`（2024-01-08，2,326 markers）已冻结为4,662文件、740,258,216字节的receipt/READY；path-size inventory与完整tree SHA-256均PASS。每个worker shard必须绑定当前receipt，聚合器逐mode核对BUSCO 5.8.3和lineage元数据；旧2个无receipt shard已删除重算。
 - 来源、annotation、BUSCO、污染和最终selection均fail-closed；
 - material alias用于最终选择，并保留原始material key用于审计。
 
@@ -111,7 +112,7 @@ Git：`main`；每个里程碑均核对本地HEAD与`origin/main`一致，除正
 - 数据精简单文件：20 passed；
 - HierMamba＋training preflight：13 passed；
 - 最近一次preflight单文件：10 passed；
-- 完整`pytest`：135 passed（127.37 s）；同时Python编译、shell语法和`git diff --check`均PASS。上一轮YAML/JSON全解析亦PASS。
+- 完整`pytest`：142 passed（22.87 s）；同时BUSCO 708 MiB full-tree verifier、Python编译、shell语法和`git diff --check`均PASS。上一轮YAML/JSON全解析亦PASS。
 
 本轮在release闭包审计中发现并修复一个关键坐标问题：sequence store的callable interval使用全局packed offset，而Tiara/UniVec mask使用单条FASTA record本地坐标。finalizer现在先将callable interval转换为record-local坐标再扣mask，并同时输出`record_start_0based`与`store_start`。新增schema-2 manifest只嵌入这些最终区间，sampler和preflight均验证坐标、callable包含关系与六长度capacity。
 
@@ -119,10 +120,10 @@ Git：`main`；每个里程碑均核对本地HEAD与`origin/main`一致，除正
 
 1. q02–q05作业因Priority等待；按用户指令不能切到cu/fat。
 2. 92个明确开放候选的双模式BUSCO与污染shard尚未完整。
-3. 最终精简source数、六长度capacity、cold-genus和release hash尚未产生；schema-2 builder和仅删除未引用store的fail-closed GC已实现，但必须等待8605104产物与release READY后才可运行。
+3. 最终精简source数、六长度capacity、cold-genus和release hash尚未产生；schema-2 builder和仅删除未引用store的fail-closed GC已实现，但必须等待8605105产物与release READY后才可运行。
 4. 目标H20环境尚不可访问，无法冻结Mamba-2生产依赖、精确参数量、BF16显存/吞吐、global batch和总token预算。
 5. 正式架构图应在参数与shape实测冻结后生成，避免图文数字先于代码。
 
 ## 8. 下一步唯一优先任务
 
-持续监控并完成job 8605100/8605101/8605102及其持久控制器8605103；`afterok`作业8605104将在QC成功后自动聚合BUSCO、污染、最终同材料/同序列代表和六长度capacity。之后冻结cold genera并用schema-2 builder构建精简data release。期间不向cu/fat提交CPU任务。
+持续监控并完成job 8605100/8605101/8605102及其持久控制器8605103；`afterok`作业8605105将在QC成功后先复核完整BUSCO lineage tree，再自动聚合BUSCO、污染、最终同材料/同序列代表和六长度capacity。之后冻结cold genera并用schema-2 builder构建精简data release。期间不向cu/fat提交CPU任务。
