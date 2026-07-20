@@ -319,10 +319,10 @@ release采用manifest＋SHA-256＋最后READY。迁移后先deep verify，再离
 
 ## 18. 执行顺序与里程碑
 
-1. 完成159个候选的BUSCO和污染审计；
+1. 完成许可证明确开放且坐标闭合的92个候选的BUSCO和污染审计；
 2. 应用material alias、质量排序和primary nuclear policy，原子生成最终候选集；
 3. 重建六长度capacity、cold-genus、low-homology split和data release；
-4. 只在最终引用闭合后删除未引用2-bit store和旧中间payload；
+4. 只在schema-2 release READY、所有QC作业结束并完成dry-run后，用受限GC删除未引用2-bit store；GC只能作用于`data/processed/sequence_store/<16位candidate_id>`，先写plan、后写receipt，raw永远不在作用域；
 5. 实现HierMamba同一正式结构和精确参数统计；
 6. 构建Mamba-2/Hyena等预算H20 spike，冻结唯一global kernel；
 7. 冻结六长度token配额、global batch、LR和总预算；
