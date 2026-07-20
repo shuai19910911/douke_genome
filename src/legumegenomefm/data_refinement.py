@@ -237,6 +237,35 @@ def merge_half_open_intervals(intervals: Iterable[tuple[int, int]]) -> list[tupl
     return merged
 
 
+def local_callable_intervals(
+    manifest: Mapping[str, object], contig_index: int
+) -> tuple[int, list[tuple[int, int]]]:
+    contigs = manifest.get("contigs")
+    callable_rows = manifest.get("callable_intervals")
+    if not isinstance(contigs, list) or not isinstance(callable_rows, list):
+        raise ValueError("sequence-store manifest lacks contigs or callable_intervals")
+    if contig_index < 0 or contig_index >= len(contigs):
+        raise ValueError(f"invalid contig index: {contig_index}")
+    contig = contigs[contig_index]
+    if not isinstance(contig, Mapping):
+        raise ValueError(f"invalid contig metadata at index {contig_index}")
+    offset = int(contig["offset"])
+    contig_length = int(contig["length"])
+    local: list[tuple[int, int]] = []
+    for interval in callable_rows:
+        if not isinstance(interval, Mapping) or int(interval["contig_index"]) != contig_index:
+            continue
+        store_start = int(interval["start"])
+        store_end = store_start + int(interval["length"])
+        if store_start < offset or store_end > offset + contig_length:
+            raise ValueError(
+                f"callable interval escapes contig bounds: index={contig_index}, "
+                f"interval={(store_start, store_end)}, bounds={(offset, offset + contig_length)}"
+            )
+        local.append((store_start - offset, store_end - offset))
+    return offset, merge_half_open_intervals(local)
+
+
 def subtract_half_open_intervals(
     intervals: Iterable[tuple[int, int]],
     masks: Iterable[tuple[int, int]],

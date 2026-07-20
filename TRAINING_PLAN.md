@@ -143,6 +143,8 @@ QV（共识质量值）仅在来源提供可审计值或存在原始读段时可
 
 每个长度独立建立eligible-source和non-overlap capacity；不得要求所有source都有256K窗口。窗口不跨染色体、不跨contig、不跨N/歧义区和污染mask。最终训练可重复采样，但统计有效容量时使用非重叠窗口，避免重叠滑窗虚增数据量。
 
+最终schema-2 manifest必须同时记录FASTA record-local坐标`record_start_0based`和packed store全局坐标`store_start`。污染mask先在record-local坐标系扣除，再转换到store坐标；sampler只能从最终`trainable_intervals`解码，不得退回store原始callable interval。builder与preflight均复核contig边界、callable包含关系、区间不重叠及六长度capacity。
+
 ### 6.3 混合长度调度
 
 只训练一个共享参数模型、一个optimizer、一个scheduler和一条checkpoint lineage。候选token占比为10%/15%/20%/20%/20%/15%，对应1K/8K/32K/64K/128K/256K；这是H20 profiling前的预注册候选，只有在各长度容量和吞吐门禁通过后才改为`frozen`。

@@ -84,6 +84,63 @@ def test_validate_dataset_requires_both_roles_and_store_hashes(tmp_path: Path) -
         _MODULE.validate_dataset(project, manifest)
 
 
+def test_validate_schema2_dataset_rejects_record_store_coordinate_tampering(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    stores = project / "stores"
+    identifiers = ("a" * 16, "b" * 16)
+    hashes = {candidate: _store(stores, candidate) for candidate in identifiers}
+    payload = {
+        "schema_version": "2.0",
+        "state": "READY",
+        "store_root": "stores",
+        "context_lengths": [16, 32],
+        "max_context": 32,
+        "sources": [
+            {
+                "candidate_id": candidate,
+                "split": split,
+                "sampling_weight": weight,
+                "store_manifest_sha256": hashes[candidate],
+                "context_capacity": {"16": 256, "32": 128},
+                "trainable_intervals": [
+                    {
+                        "contig_index": 0,
+                        "sequence_name": "chr1",
+                        "record_start_0based": 0,
+                        "store_start": 0,
+                        "length": 4096,
+                    }
+                ],
+            }
+            for candidate, split, weight in (
+                (identifiers[0], "pretrain", 1.0),
+                (identifiers[1], "cold_genus_holdout", 0.0),
+            )
+        ],
+    }
+    manifest = project / "data_release" / "training_dataset.json"
+    manifest.parent.mkdir(parents=True)
+
+    def write_release() -> None:
+        manifest.write_text(json.dumps(payload) + "\n")
+        release = {
+            "state": "READY",
+            "dataset_manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+        }
+        release_bytes = (json.dumps(release) + "\n").encode()
+        (manifest.parent / "training_dataset.release.json").write_bytes(release_bytes)
+        (manifest.parent / "TRAINING_DATASET_READY").write_text(
+            hashlib.sha256(release_bytes).hexdigest() + "\n"
+        )
+
+    write_release()
+    assert _MODULE.validate_dataset(project, manifest, [16, 32])["source_count"] == 2
+    payload["sources"][0]["trainable_intervals"][0]["store_start"] = 1
+    write_release()
+    with pytest.raises(ValueError, match="trainable interval"):
+        _MODULE.validate_dataset(project, manifest, [16, 32])
+
+
 def test_validate_mode_is_fail_closed(tmp_path: Path) -> None:
     output = tmp_path / "run"
     _MODULE.validate_mode("fresh", output, None)

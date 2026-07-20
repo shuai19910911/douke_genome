@@ -12,7 +12,12 @@ from pathlib import Path
 
 import yaml
 
-from legumegenomefm.data_refinement import canonical_material_key, select_unique_candidates, subtract_half_open_intervals
+from legumegenomefm.data_refinement import (
+    canonical_material_key,
+    local_callable_intervals,
+    select_unique_candidates,
+    subtract_half_open_intervals,
+)
 
 
 def sha256(path: Path) -> str:
@@ -236,7 +241,8 @@ def main() -> int:
                 "candidate_id",
                 "contig_index",
                 "sequence_name",
-                "start_0based",
+                "record_start_0based",
+                "store_start",
                 "length",
                 "status",
             ]
@@ -246,15 +252,10 @@ def main() -> int:
                 manifest = json.loads(
                     (root / "data/processed/sequence_store" / candidate_id / "manifest.json").read_text(encoding="utf-8")
                 )
-                source_by_contig: dict[int, list[tuple[int, int]]] = defaultdict(list)
-                for interval in manifest["callable_intervals"]:
-                    index = int(interval["contig_index"])
-                    if index in record_names_by_candidate[candidate_id]:
-                        start = int(interval["start"])
-                        source_by_contig[index].append((start, start + int(interval["length"])))
                 for index, sequence_name in sorted(record_names_by_candidate[candidate_id].items()):
+                    contig_offset, source_intervals = local_callable_intervals(manifest, index)
                     clean = subtract_half_open_intervals(
-                        source_by_contig.get(index, []),
+                        source_intervals,
                         masks_by_record.get((candidate_id, sequence_name), []),
                     )
                     for start, end in clean:
@@ -266,7 +267,8 @@ def main() -> int:
                                 "candidate_id": candidate_id,
                                 "contig_index": index,
                                 "sequence_name": sequence_name,
-                                "start_0based": start,
+                                "record_start_0based": start,
+                                "store_start": contig_offset + start,
                                 "length": length,
                                 "status": "TRAINABLE",
                             }

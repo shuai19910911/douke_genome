@@ -14,6 +14,7 @@ from legumegenomefm.data_refinement import (
     canonical_material_key,
     eligible_tiara_chunks,
     classify_assembly,
+    local_callable_intervals,
     legumeinfo_readme_url,
     metadata_license_allows_training,
     metadata_has_chromosome_evidence,
@@ -209,6 +210,24 @@ def test_callable_intervals_are_split_around_contamination_masks() -> None:
         (50, 100),
         (200, 230),
     ]
+
+
+def test_callable_intervals_are_localized_before_record_masks_are_subtracted() -> None:
+    manifest = {
+        "contigs": [
+            {"name": "chr1", "offset": 0, "length": 1000},
+            {"name": "chr2", "offset": 1000, "length": 500},
+        ],
+        "callable_intervals": [
+            {"contig_index": 1, "start": 1020, "length": 100},
+        ],
+    }
+    offset, local = local_callable_intervals(manifest, 1)
+    assert offset == 1000
+    assert local == [(20, 120)]
+    clean = subtract_half_open_intervals(local, [(30, 40)])
+    assert clean == [(20, 30), (40, 120)]
+    assert [(offset + start, end - start) for start, end in clean] == [(1020, 10), (1040, 80)]
 
 
 def test_assembly_classification_separates_official_t2t_proxy_and_failure() -> None:

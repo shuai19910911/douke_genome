@@ -184,7 +184,11 @@ def validate_h20_runtime_evidence(payload: dict[str, object], project_root: Path
         raise ValueError("H20 kernel-selection receipt mismatch")
 
 
-def validate_dataset(project_root: Path, dataset_path: Path) -> dict[str, int]:
+def validate_dataset(
+    project_root: Path,
+    dataset_path: Path,
+    expected_contexts: list[int] | None = None,
+) -> dict[str, int]:
     release_path = dataset_path.parent / "training_dataset.release.json"
     release_bytes = release_path.read_bytes()
     release_ready = (dataset_path.parent / "TRAINING_DATASET_READY").read_text(encoding="ascii").strip()
@@ -194,6 +198,15 @@ def validate_dataset(project_root: Path, dataset_path: Path) -> dict[str, int]:
     if release.get("state") != "READY" or release.get("dataset_manifest_sha256") != sha256(dataset_path):
         raise ValueError("training dataset release does not bind the dataset manifest")
     payload = json.loads(dataset_path.read_text(encoding="utf-8"))
+    schema_version = payload.get("schema_version")
+    if schema_version == "2.0":
+        contexts = [int(value) for value in payload.get("context_lengths", [])]
+        if not contexts or contexts != sorted(set(contexts)) or int(payload.get("max_context", 0)) != contexts[-1]:
+            raise ValueError("schema-2 dataset contexts are invalid")
+        if expected_contexts is not None and contexts != [int(value) for value in expected_contexts]:
+            raise ValueError("schema-2 dataset contexts do not match the training contract")
+    else:
+        contexts = []
     store_root = project_root / confined_relative(payload.get("store_root"), "store_root")
     sources = payload.get("sources")
     if not isinstance(sources, list) or not sources:
@@ -226,6 +239,46 @@ def validate_dataset(project_root: Path, dataset_path: Path) -> dict[str, int]:
         packed = directory / "sequence.2bit"
         if packed.is_symlink() or not packed.is_file() or packed.stat().st_size != store_payload.get("packed_size_bytes"):
             raise ValueError(f"store payload size/type mismatch: {candidate_id}")
+        if schema_version == "2.0":
+            intervals = source.get("trainable_intervals")
+            capacities = source.get("context_capacity")
+            contigs = store_payload.get("contigs")
+            callable_rows = store_payload.get("callable_intervals")
+            if not isinstance(intervals, list) or not intervals or not isinstance(capacities, dict):
+                raise ValueError(f"schema-2 source lacks intervals or capacities: {candidate_id}")
+            if not isinstance(contigs, list) or not isinstance(callable_rows, list):
+                raise ValueError(f"store lacks coordinate metadata: {candidate_id}")
+            callable_by_contig: dict[int, list[tuple[int, int]]] = {}
+            for interval in callable_rows:
+                index = int(interval["contig_index"])
+                start = int(interval["start"])
+                callable_by_contig.setdefault(index, []).append((start, start + int(interval["length"])))
+            previous_end: dict[int, int] = {}
+            for interval in sorted(intervals, key=lambda row: (int(row["contig_index"]), int(row["store_start"]))):
+                index = int(interval["contig_index"])
+                if index < 0 or index >= len(contigs):
+                    raise ValueError(f"invalid schema-2 contig index: {candidate_id}:{index}")
+                contig = contigs[index]
+                store_start = int(interval["store_start"])
+                record_start = int(interval["record_start_0based"])
+                length = int(interval["length"])
+                end = store_start + length
+                if (
+                    length < contexts[0]
+                    or str(interval["sequence_name"]) != str(contig["name"])
+                    or store_start != int(contig["offset"]) + record_start
+                    or record_start < 0
+                    or end > int(contig["offset"]) + int(contig["length"])
+                    or store_start < previous_end.get(index, -1)
+                ):
+                    raise ValueError(f"invalid schema-2 trainable interval: {candidate_id}:{index}")
+                previous_end[index] = end
+                if not any(start <= store_start and end <= callable_end for start, callable_end in callable_by_contig.get(index, [])):
+                    raise ValueError(f"schema-2 interval is outside callable sequence: {candidate_id}:{index}")
+            for context in contexts:
+                observed = sum(int(interval["length"]) // context for interval in intervals)
+                if int(capacities.get(str(context), -1)) != observed:
+                    raise ValueError(f"schema-2 context capacity mismatch: {candidate_id}:{context}")
     if not all(counts.values()):
         raise ValueError("both pretrain and cold_genus_holdout roles must be non-empty")
     return {"source_count": len(sources), **counts}
@@ -308,7 +361,7 @@ def main() -> int:
     validate_contract_status(payload)
     validate_ultralong_static_contract(payload)
     validate_h20_runtime_evidence(payload, project_root)
-    counts = validate_dataset(project_root, dataset)
+    counts = validate_dataset(project_root, dataset, [int(value) for value in payload["contexts"]])
     initialization = args.initialize_from.resolve() if args.initialize_from else None
     validate_mode(args.mode, output, initialization)
     devices = validate_gpu_contract(payload, args.nproc_per_node, args.minimum_free_mib)
