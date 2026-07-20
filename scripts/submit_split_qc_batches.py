@@ -41,7 +41,14 @@ def choose_genome_batch(missing: list[dict[str, str]]) -> tuple[list[dict[str, s
     return tiers["large"][:1], 170, 1, "large"
 
 
-def run_merger(root: Path, tasks: Path, combined: Path, proteins: Path, genomes: Path) -> None:
+def run_merger(
+    root: Path,
+    tasks: Path,
+    combined: Path,
+    proteins: Path,
+    genomes: Path,
+    lineage_ready: Path,
+) -> None:
     subprocess.run(
         [
             sys.executable,
@@ -55,6 +62,8 @@ def run_merger(root: Path, tasks: Path, combined: Path, proteins: Path, genomes:
             str(proteins),
             "--genome-dir",
             str(genomes),
+            "--lineage-ready",
+            str(lineage_ready),
         ],
         cwd=root,
         check=True,
@@ -79,26 +88,44 @@ def main() -> int:
     protein_dir = root / "workspace/data_refinement_busco_protein_shards"
     genome_dir = root / "workspace/data_refinement_busco_genome_shards"
     contamination_dir = root / "workspace/data_refinement_contamination_shards"
+    lineage_ready = root / "data_manifests/busco_lineage_eudicots_odb10.READY"
+    lineage_receipt_sha256 = lineage_ready.read_text(encoding="ascii").strip()
+    if len(lineage_receipt_sha256) != 64:
+        raise ValueError("invalid BUSCO lineage READY digest")
     for directory in (logs, combined_dir, protein_dir, genome_dir, contamination_dir):
         directory.mkdir(parents=True, exist_ok=True)
     attempts: dict[tuple[str, str], int] = defaultdict(int)
     iteration = 0
     while True:
-        run_merger(root, tasks_path, combined_dir, protein_dir, genome_dir)
+        run_merger(root, tasks_path, combined_dir, protein_dir, genome_dir, lineage_ready)
         combined_missing = [
             row
             for row in tasks
-            if not valid_combined(read_json(combined_dir / f"{row['candidate_id']}.json"), row["candidate_id"])
+            if not valid_combined(
+                read_json(combined_dir / f"{row['candidate_id']}.json"),
+                row["candidate_id"],
+                lineage_receipt_sha256,
+            )
         ]
         protein_missing = [
             row
             for row in combined_missing
-            if not valid_mode(read_json(protein_dir / f"{row['candidate_id']}.json"), row["candidate_id"], "proteins")
+            if not valid_mode(
+                read_json(protein_dir / f"{row['candidate_id']}.json"),
+                row["candidate_id"],
+                "proteins",
+                lineage_receipt_sha256,
+            )
         ]
         genome_missing = [
             row
             for row in combined_missing
-            if not valid_mode(read_json(genome_dir / f"{row['candidate_id']}.json"), row["candidate_id"], "genome")
+            if not valid_mode(
+                read_json(genome_dir / f"{row['candidate_id']}.json"),
+                row["candidate_id"],
+                "genome",
+                lineage_receipt_sha256,
+            )
         ]
         contamination_missing = [
             row

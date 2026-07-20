@@ -348,7 +348,8 @@ PYTHONPATH="$PWD/src" python scripts/merge_busco_mode_shards.py \
   --tasks data_manifests/data_refinement_busco_tasks.tsv \
   --protein-dir workspace/data_refinement_busco_protein_shards \
   --genome-dir workspace/data_refinement_busco_genome_shards \
-  --combined-dir workspace/data_refinement_busco_shards
+  --combined-dir workspace/data_refinement_busco_shards \
+  --lineage-ready data_manifests/busco_lineage_eudicots_odb10.READY
 
 # 全测试；正式发布前必须通过
 PYTHONPATH="$PWD/src" python -m pytest

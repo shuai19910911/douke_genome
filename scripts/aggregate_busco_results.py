@@ -71,6 +71,34 @@ def mode_values(shard: dict[str, object], mode: str) -> dict[str, object]:
     }
 
 
+def validate_busco_provenance(shard: dict[str, object], config: dict[str, object]) -> None:
+    if shard.get("lineage_receipt_sha256") != config["lineage_receipt_sha256"]:
+        raise ValueError("BUSCO shard lineage receipt mismatch")
+    busco = shard.get("busco")
+    if not isinstance(busco, dict):
+        raise ValueError("BUSCO result mapping missing")
+    expected_dataset = {
+        "name": str(config["expected_dataset_name"]),
+        "creation_date": str(config["expected_creation_date"]),
+        "number_of_buscos": str(config["expected_number_of_buscos"]),
+        "number_of_species": str(config["expected_number_of_species"]),
+    }
+    for mode in ("proteins", "genome"):
+        mode_result = busco.get(mode)
+        if not isinstance(mode_result, dict) or not isinstance(mode_result.get("summary"), dict):
+            raise ValueError(f"BUSCO {mode} summary missing")
+        summary = mode_result["summary"]
+        versions = summary.get("versions")
+        if not isinstance(versions, dict) or str(versions.get("busco")) != str(config["expected_busco_version"]):
+            raise ValueError(f"BUSCO {mode} version mismatch")
+        lineage_dataset = summary.get("lineage_dataset")
+        if not isinstance(lineage_dataset, dict):
+            raise ValueError(f"BUSCO {mode} lineage dataset missing")
+        for key, expected in expected_dataset.items():
+            if str(lineage_dataset.get(key)) != expected:
+                raise ValueError(f"BUSCO {mode} lineage {key} mismatch")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Aggregate fail-closed BUSCO shards")
     parser.add_argument("--tasks", required=True, type=Path)
@@ -141,6 +169,7 @@ def main() -> int:
                 raise ValueError(str(shard.get("error", "worker did not pass")))
             if set(shard.get("requested_modes", [])) != {"proteins", "genome"}:
                 raise ValueError(f"required BUSCO modes missing: {shard.get('requested_modes')}")
+            validate_busco_provenance(shard, busco_config)
             staging = shard.get("staging")
             if not isinstance(staging, dict):
                 raise ValueError("staging summary missing")
@@ -187,6 +216,10 @@ def main() -> int:
         "candidate_count": len(rows),
         "status_counts": dict(sorted(counts.items())),
         "lineage": str(busco_config["lineage"]),
+        "lineage_receipt_sha256": str(busco_config["lineage_receipt_sha256"]),
+        "busco_version": str(busco_config["expected_busco_version"]),
+        "lineage_creation_date": str(busco_config["expected_creation_date"]),
+        "lineage_number_of_buscos": int(busco_config["expected_number_of_buscos"]),
         "minimum_annotation_complete_percent": minimum_annotation,
         "minimum_genome_complete_percent": minimum_genome,
         "input_sha256": {

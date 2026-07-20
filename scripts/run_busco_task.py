@@ -14,6 +14,8 @@ import time
 import zipfile
 from pathlib import Path
 
+from legumegenomefm.reference_integrity import validate_busco_lineage
+
 
 def atomic_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -148,6 +150,7 @@ def main() -> int:
     }
     started = time.monotonic()
     try:
+        result["lineage_receipt_sha256"] = validate_busco_lineage(project_root, lineage)
         with tempfile.TemporaryDirectory(prefix=f"soybusco-{task['candidate_id']}-", dir=scratch_parent) as scratch_text:
             scratch = Path(scratch_text)
             genome = scratch / "genome.fa"

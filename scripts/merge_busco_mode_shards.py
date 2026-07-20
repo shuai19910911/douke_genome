@@ -39,22 +39,33 @@ def atomic_json(path: Path, value: object) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def valid_combined(value: dict[str, object] | None, candidate_id: str) -> bool:
+def valid_combined(
+    value: dict[str, object] | None,
+    candidate_id: str,
+    lineage_receipt_sha256: str,
+) -> bool:
     return bool(
         value
         and value.get("candidate_id") == candidate_id
         and value.get("status") == "PASS"
+        and value.get("lineage_receipt_sha256") == lineage_receipt_sha256
         and set(value.get("requested_modes", [])) == {"proteins", "genome"}
         and isinstance(value.get("busco"), dict)
         and set(value["busco"]) == {"proteins", "genome"}
     )
 
 
-def valid_mode(value: dict[str, object] | None, candidate_id: str, mode: str) -> bool:
+def valid_mode(
+    value: dict[str, object] | None,
+    candidate_id: str,
+    mode: str,
+    lineage_receipt_sha256: str,
+) -> bool:
     return bool(
         value
         and value.get("candidate_id") == candidate_id
         and value.get("status") == "PASS"
+        and value.get("lineage_receipt_sha256") == lineage_receipt_sha256
         and value.get("requested_modes") == [mode]
         and isinstance(value.get("busco"), dict)
         and set(value["busco"]) == {mode}
@@ -67,12 +78,18 @@ def main() -> int:
     parser.add_argument("--combined-dir", required=True, type=Path)
     parser.add_argument("--protein-dir", required=True, type=Path)
     parser.add_argument("--genome-dir", required=True, type=Path)
+    parser.add_argument("--lineage-ready", required=True, type=Path)
     args = parser.parse_args()
     with args.tasks.resolve().open(newline="", encoding="utf-8") as handle:
         tasks = list(csv.DictReader(handle, delimiter="\t"))
     combined_dir = args.combined_dir.resolve()
     protein_dir = args.protein_dir.resolve()
     genome_dir = args.genome_dir.resolve()
+    lineage_receipt_sha256 = args.lineage_ready.resolve().read_text(encoding="ascii").strip()
+    if len(lineage_receipt_sha256) != 64 or any(
+        character not in "0123456789abcdef" for character in lineage_receipt_sha256
+    ):
+        raise ValueError("invalid BUSCO lineage READY digest")
     combined_dir.mkdir(parents=True, exist_ok=True)
     merged_count = 0
     already_complete = 0
@@ -80,14 +97,16 @@ def main() -> int:
     for task in tasks:
         candidate_id = task["candidate_id"]
         combined_path = combined_dir / f"{candidate_id}.json"
-        if valid_combined(read_json(combined_path), candidate_id):
+        if valid_combined(read_json(combined_path), candidate_id, lineage_receipt_sha256):
             already_complete += 1
             continue
         protein_path = protein_dir / f"{candidate_id}.json"
         genome_path = genome_dir / f"{candidate_id}.json"
         protein = read_json(protein_path)
         genome = read_json(genome_path)
-        if not valid_mode(protein, candidate_id, "proteins") or not valid_mode(genome, candidate_id, "genome"):
+        if not valid_mode(protein, candidate_id, "proteins", lineage_receipt_sha256) or not valid_mode(
+            genome, candidate_id, "genome", lineage_receipt_sha256
+        ):
             incomplete.append(candidate_id)
             continue
         assert protein is not None and genome is not None

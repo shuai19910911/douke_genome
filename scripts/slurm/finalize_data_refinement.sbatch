@@ -15,11 +15,17 @@ cd "$PROJECT_ROOT"
 export PYTHONPATH="$PROJECT_ROOT/src"
 export PYTHONDONTWRITEBYTECODE=1
 
+"$PYTHON_BIN" -B scripts/verify_busco_lineage.py \
+  --project-root "$PROJECT_ROOT" \
+  --lineage data/reference/busco/lineages/eudicots_odb10 \
+  --full
+
 "$PYTHON_BIN" -B scripts/merge_busco_mode_shards.py \
   --tasks "$TASKS" \
   --combined-dir workspace/data_refinement_busco_shards \
   --protein-dir workspace/data_refinement_busco_protein_shards \
-  --genome-dir workspace/data_refinement_busco_genome_shards
+  --genome-dir workspace/data_refinement_busco_genome_shards \
+  --lineage-ready data_manifests/busco_lineage_eudicots_odb10.READY
 
 "$PYTHON_BIN" -B scripts/aggregate_busco_results.py \
   --tasks "$TASKS" \
