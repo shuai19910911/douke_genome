@@ -1,6 +1,6 @@
 # LegumeGenomeFM：实时执行进度
 
-> 最后更新：2026-07-20 15:17 CST（UTC+08:00）。当前阶段：**精简数据深审＋超长架构候选实现**。正式训练未开始；旧440-source release和旧89M/16K训练合同均已撤销。
+> 最后更新：2026-07-20 15:28 CST（UTC+08:00）。当前阶段：**精简数据深审＋超长架构候选实现**。正式训练未开始；旧440-source release和旧89M/16K训练合同均已撤销。
 
 ## 1. 状态总览
 
@@ -102,8 +102,9 @@
 - `causal_conv1d`：未安装；
 - A100：本轮未使用；
 - H20：尚未使用/尚未probe。
+- 独立QC环境`soygenome_qc`：Python 3.13.14、BUSCO 5.8.3、gffread 0.12.7、seqkit 2.13.0；BUSCO import、`run_BUSCO.main`、`--version`和`--help`均按正式worker的`QC_ENV/bin`优先PATH语义通过。直接执行绝对入口但不设置环境PATH会错误解析到外部Python，因此不作为有效调用方式。
 
-Git：`main`，当前基线commit为`d750f74a288e093b8c0ad7a3b6f6d02fcfa61625`，与`origin/main`基线一致；本轮修改尚未提交。
+Git：`main`；每个里程碑均核对本地HEAD与`origin/main`一致，除正在编辑的进度同步外工作区保持干净。
 
 本轮真实定点测试：
 
