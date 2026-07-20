@@ -12,6 +12,10 @@ from pathlib import Path
 
 from merge_busco_mode_shards import read_json, valid_combined, valid_mode
 from submit_qc_repair_batches import array_argument, contamination_valid, submit, wait_jobs
+from legumegenomefm.reference_integrity import (
+    load_contamination_legacy_bindings,
+    validate_contamination_references,
+)
 
 
 def read_tasks(path: Path) -> list[dict[str, str]]:
@@ -79,6 +83,7 @@ def main() -> int:
     parser.add_argument("--maximum-attempts", type=int, default=3)
     args = parser.parse_args()
     root = args.project_root.resolve()
+    qc_env = Path(os.environ.get("SOYGENOME_QC_ENV", "~/.local/share/mamba/envs/soygenome_qc")).expanduser().resolve()
     tasks_path = args.tasks.resolve()
     tasks = read_tasks(tasks_path)
     if not tasks:
@@ -88,6 +93,13 @@ def main() -> int:
     protein_dir = root / "workspace/data_refinement_busco_protein_shards"
     genome_dir = root / "workspace/data_refinement_busco_genome_shards"
     contamination_dir = root / "workspace/data_refinement_contamination_shards"
+    contamination_reference_sha256 = validate_contamination_references(
+        root,
+        root / "data/reference/containers/tiara-1.0.3.sif",
+        root / "data/reference/univec/UniVec_Core",
+        qc_env / "bin/blastn",
+    )
+    contamination_legacy_bindings = load_contamination_legacy_bindings(root, contamination_reference_sha256)
     lineage_ready = root / "data_manifests/busco_lineage_eudicots_odb10.READY"
     lineage_receipt_sha256 = lineage_ready.read_text(encoding="ascii").strip()
     if len(lineage_receipt_sha256) != 64:
@@ -130,7 +142,12 @@ def main() -> int:
         contamination_missing = [
             row
             for row in tasks
-            if not contamination_valid(contamination_dir / f"{row['candidate_id']}.json", row["candidate_id"])
+            if not contamination_valid(
+                contamination_dir / f"{row['candidate_id']}.json",
+                row["candidate_id"],
+                contamination_reference_sha256,
+                contamination_legacy_bindings,
+            )
         ]
         print(
             json.dumps(
@@ -178,7 +195,7 @@ def main() -> int:
                             f"CONFIG={root / 'configs/data_refinement.yaml'}",
                             f"TIARA_IMAGE={root / 'data/reference/containers/tiara-1.0.3.sif'}",
                             f"UNIVEC_DB={root / 'data/reference/univec/UniVec_Core'}",
-                            "QC_ENV=/home/user/zhangzhishuai/.local/share/mamba/envs/soygenome_qc",
+                            f"QC_ENV={qc_env}",
                             "PYTHON_BIN=/home/user/zhangzhishuai/.local/share/mamba/envs/douke_genomemodel/bin/python",
                             f"OUTPUT_DIR={contamination_dir}",
                         )
@@ -214,7 +231,7 @@ def main() -> int:
                             f"PROJECT_ROOT={root}",
                             f"TASKS={tasks_path}",
                             f"LINEAGE={root / 'data/reference/busco/lineages/eudicots_odb10'}",
-                            "QC_ENV=/home/user/zhangzhishuai/.local/share/mamba/envs/soygenome_qc",
+                            f"QC_ENV={qc_env}",
                             f"OUTPUT_DIR={protein_dir}",
                             "BUSCO_MODES=proteins",
                         )
@@ -250,7 +267,7 @@ def main() -> int:
                             f"PROJECT_ROOT={root}",
                             f"TASKS={tasks_path}",
                             f"LINEAGE={root / 'data/reference/busco/lineages/eudicots_odb10'}",
-                            "QC_ENV=/home/user/zhangzhishuai/.local/share/mamba/envs/soygenome_qc",
+                            f"QC_ENV={qc_env}",
                             f"OUTPUT_DIR={genome_dir}",
                             "BUSCO_MODES=genome",
                         )

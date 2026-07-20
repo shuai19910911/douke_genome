@@ -47,6 +47,8 @@ busco:
   minimum_annotation_complete_percent: 90.0
   duplicated_buscos_count_as_complete: true
 contamination:
+  reference_receipt_sha256: 0c4ed8ecf4b78208b1fa873dc9e1cf2faa94c784f6f6119de5e64f847afaa238
+  legacy_binding_receipt_sha256: 2d5aeb3920bc47c59b5a041fcd231051130979063e6e234d8040c1ac9d21a9fd
   tiara_minimum_contig_length: 3000
   tiara_chunk_length: 1000000
   tiara_minimum_acgt_fraction: 0.5

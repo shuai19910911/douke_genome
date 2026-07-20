@@ -1,0 +1,30 @@
+{
+  "blast": {
+    "environment_id": "soygenome_qc",
+    "executable_sha256": "0b88d4a00cb7fa579c203653151175b24c83d27fe240d420abe7b5261a3083d1",
+    "executable_size_bytes": 256536,
+    "version": "2.17.0+"
+  },
+  "full_verification_algorithm": "Tiara file SHA-256 + canonical UniVec [[name,size,file_sha256],...] + blastn executable SHA-256",
+  "schema_version": "1.0",
+  "state": "READY",
+  "tiara": {
+    "container_relative_path": "data/reference/containers/tiara-1.0.3.sif",
+    "container_source": "quay.io/biocontainers/tiara:1.0.3",
+    "sha256": "a651b6c7bc403cbe210df3fbd70ae731ce17e2850a73ebcdc0676203019c12a0",
+    "size_bytes": 587227136,
+    "version": "1.0.3"
+  },
+  "univec": {
+    "blastdb_version": 5,
+    "database_relative_prefix": "data/reference/univec/UniVec_Core",
+    "file_count": 11,
+    "full_tree_sha256": "77e61ae3946854f6fc3c0dd5f9bfa5279b93d6419822b1e688fa0853a199fb87",
+    "path_size_inventory_sha256": "1f8c7ad28f8b43c5c1a80d70be7aaac8bb237e9fba6322d2be02adc46acd2553",
+    "sequence_count": 3155,
+    "source_fasta_sha256": "ea5d15248a4f438069ffa70bb6088f28935379354ea3e924cc5d6db40be92c5c",
+    "source_url": "https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec_Core",
+    "total_bases": 688131,
+    "total_bytes": 1930805
+  }
+}

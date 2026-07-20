@@ -3,12 +3,19 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import subprocess
 import time
 from collections import defaultdict
 from pathlib import Path
+
+from legumegenomefm.reference_integrity import (
+    load_contamination_legacy_bindings,
+    validate_busco_lineage,
+    validate_contamination_references,
+)
 
 
 def read_tasks(path: Path) -> list[dict[str, str]]:
@@ -27,17 +34,23 @@ def read_json(path: Path) -> dict[str, object] | None:
         return None
 
 
-def busco_valid(path: Path, candidate_id: str) -> bool:
+def busco_valid(path: Path, candidate_id: str, lineage_receipt_sha256: str) -> bool:
     value = read_json(path)
     return bool(
         value
         and value.get("candidate_id") == candidate_id
         and value.get("status") == "PASS"
         and set(value.get("requested_modes", [])) == {"proteins", "genome"}
+        and value.get("lineage_receipt_sha256") == lineage_receipt_sha256
     )
 
 
-def contamination_valid(path: Path, candidate_id: str) -> bool:
+def contamination_valid(
+    path: Path,
+    candidate_id: str,
+    reference_receipt_sha256: str,
+    legacy_bindings: dict[str, str],
+) -> bool:
     value = read_json(path)
     if not value or value.get("candidate_id") != candidate_id or value.get("status") != "PASS":
         return False
@@ -46,6 +59,10 @@ def contamination_valid(path: Path, candidate_id: str) -> bool:
     if not isinstance(tiara, dict) or not isinstance(tiara.get("record_class_base_counts"), dict):
         return False
     if not isinstance(univec, dict) or not isinstance(univec.get("records"), list):
+        return False
+    direct_binding = value.get("contamination_reference_receipt_sha256") == reference_receipt_sha256
+    legacy_binding = legacy_bindings.get(candidate_id) == hashlib.sha256(path.read_bytes()).hexdigest()
+    if not direct_binding and not legacy_binding:
         return False
     return all(
         isinstance(record, dict) and isinstance(record.get("intervals_1based_inclusive"), list)
@@ -103,6 +120,7 @@ def main() -> int:
     parser.add_argument("--maximum-attempts", type=int, default=3)
     args = parser.parse_args()
     root = args.project_root.resolve()
+    qc_env = Path(os.environ.get("SOYGENOME_QC_ENV", "~/.local/share/mamba/envs/soygenome_qc")).expanduser().resolve()
     tasks_path = args.tasks.resolve()
     tasks = read_tasks(tasks_path)
     if args.poll_seconds < 1 or args.maximum_attempts < 1:
@@ -110,6 +128,15 @@ def main() -> int:
 
     busco_dir = root / "workspace/data_refinement_busco_shards"
     contamination_dir = root / "workspace/data_refinement_contamination_shards"
+    contamination_reference_sha256 = validate_contamination_references(
+        root,
+        root / "data/reference/containers/tiara-1.0.3.sif",
+        root / "data/reference/univec/UniVec_Core",
+        qc_env / "bin/blastn",
+    )
+    contamination_legacy_bindings = load_contamination_legacy_bindings(root, contamination_reference_sha256)
+    lineage = root / "data/reference/busco/lineages/eudicots_odb10"
+    lineage_receipt_sha256 = validate_busco_lineage(root, lineage)
     busco_dir.mkdir(parents=True, exist_ok=True)
     contamination_dir.mkdir(parents=True, exist_ok=True)
     logs = root / "logs/slurm"
@@ -120,12 +147,21 @@ def main() -> int:
         missing_busco = [
             row
             for row in tasks
-            if not busco_valid(busco_dir / f"{row['candidate_id']}.json", row["candidate_id"])
+            if not busco_valid(
+                busco_dir / f"{row['candidate_id']}.json",
+                row["candidate_id"],
+                lineage_receipt_sha256,
+            )
         ]
         missing_contamination = [
             row
             for row in tasks
-            if not contamination_valid(contamination_dir / f"{row['candidate_id']}.json", row["candidate_id"])
+            if not contamination_valid(
+                contamination_dir / f"{row['candidate_id']}.json",
+                row["candidate_id"],
+                contamination_reference_sha256,
+                contamination_legacy_bindings,
+            )
         ]
         print(
             json.dumps(
@@ -169,7 +205,7 @@ def main() -> int:
                         f"CONFIG={root / 'configs/data_refinement.yaml'}",
                         f"TIARA_IMAGE={root / 'data/reference/containers/tiara-1.0.3.sif'}",
                         f"UNIVEC_DB={root / 'data/reference/univec/UniVec_Core'}",
-                        "QC_ENV=/home/user/zhangzhishuai/.local/share/mamba/envs/soygenome_qc",
+                        f"QC_ENV={qc_env}",
                         "PYTHON_BIN=/home/user/zhangzhishuai/.local/share/mamba/envs/douke_genomemodel/bin/python",
                         f"OUTPUT_DIR={contamination_dir}",
                     )
@@ -203,8 +239,8 @@ def main() -> int:
                         "ALL",
                         f"PROJECT_ROOT={root}",
                         f"TASKS={tasks_path}",
-                        f"LINEAGE={root / 'data/reference/busco/lineages/eudicots_odb10'}",
-                        "QC_ENV=/home/user/zhangzhishuai/.local/share/mamba/envs/soygenome_qc",
+                        f"LINEAGE={lineage}",
+                        f"QC_ENV={qc_env}",
                         f"OUTPUT_DIR={busco_dir}",
                         "BUSCO_MODES=both",
                     )

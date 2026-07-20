@@ -103,6 +103,8 @@ QV（共识质量值）仅在来源提供可审计值或存在原始读段时可
 - UniVec高置信命中比例≤0.01%；
 - 可定位污染区间进入mask，不跨污染区采样。
 
+污染审计的正式软件组合固定为`quay.io/biocontainers/tiara:1.0.3`构建的Singularity SIF、`soygenome_qc`中的BLAST 2.17.0+和本地格式化的NCBI UniVec Core；不依赖单独的`soygenome_contam` conda环境。Tiara SIF、UniVec全部数据库文件和`blastn`二进制由`contamination_references.receipt.json`及READY绑定，finalizer聚合前执行完整SHA-256复核。新shard直接记录reference receipt SHA；在receipt引入前产生的55个PASS shard不改写历史JSON，而由独立legacy-binding receipt按shard SHA、精确命令路径和“参考文件先于shard生成”的mtime证据绑定。
+
 ### 4.4 去重与同材料唯一版本
 
 按以下顺序选择：

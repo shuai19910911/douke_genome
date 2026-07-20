@@ -8,12 +8,20 @@
 set -eu
 PROJECT_ROOT=${PROJECT_ROOT:?PROJECT_ROOT is required}
 PYTHON_BIN=${PYTHON_BIN:?PYTHON_BIN is required}
+QC_ENV=${QC_ENV:?QC_ENV is required}
 TASKS=${TASKS:?TASKS is required}
 CONFIG=${CONFIG:?CONFIG is required}
 
 cd "$PROJECT_ROOT"
 export PYTHONPATH="$PROJECT_ROOT/src"
 export PYTHONDONTWRITEBYTECODE=1
+
+"$PYTHON_BIN" -B scripts/verify_contamination_references.py \
+  --project-root "$PROJECT_ROOT" \
+  --tiara-image data/reference/containers/tiara-1.0.3.sif \
+  --univec-db data/reference/univec/UniVec_Core \
+  --qc-env "$QC_ENV" \
+  --full
 
 "$PYTHON_BIN" -B scripts/verify_busco_lineage.py \
   --project-root "$PROJECT_ROOT" \

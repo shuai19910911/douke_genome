@@ -13,6 +13,7 @@ from pathlib import Path
 import yaml
 
 from legumegenomefm.data_refinement import merge_half_open_intervals, record_is_primary_nuclear
+from legumegenomefm.reference_integrity import load_contamination_legacy_bindings
 
 
 def sha256(path: Path) -> str:
@@ -109,6 +110,15 @@ def main() -> int:
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     assembly_config = config["assembly"]
     contamination_config = config["contamination"]
+    reference_receipt_sha256 = str(contamination_config["reference_receipt_sha256"])
+    if (root / "data_manifests/contamination_references.READY").read_text(encoding="ascii").strip() != reference_receipt_sha256:
+        raise ValueError("contamination reference/config READY mismatch")
+    legacy_ready_sha256 = (root / "data_manifests/contamination_legacy_binding.READY").read_text(
+        encoding="ascii"
+    ).strip()
+    if legacy_ready_sha256 != str(contamination_config["legacy_binding_receipt_sha256"]):
+        raise ValueError("contamination legacy binding/config READY mismatch")
+    legacy_bindings = load_contamination_legacy_bindings(root, reference_receipt_sha256)
     proxy_minimum_length = int(assembly_config["structural_proxy"]["long_sequence_threshold"])
     minimum_primary_fraction = float(assembly_config["minimum_primary_nuclear_fraction"])
     minimum_tiara_fraction = float(contamination_config["minimum_primary_tiara_evaluated_fraction"])
@@ -172,7 +182,13 @@ def main() -> int:
         base_count = int(task["base_count"])
         primary_fraction = primary_bases / base_count if base_count else 0.0
 
-        shard = json.loads((shards_dir / f"{candidate_id}.json").read_text(encoding="utf-8"))
+        shard_path = shards_dir / f"{candidate_id}.json"
+        shard = json.loads(shard_path.read_text(encoding="utf-8"))
+        direct_reference_binding = shard.get("contamination_reference_receipt_sha256") == reference_receipt_sha256
+        legacy_reference_binding = legacy_bindings.get(candidate_id) == sha256(shard_path)
+        if not direct_reference_binding and not legacy_reference_binding:
+            raise ValueError(f"contamination shard lacks current reference binding: {candidate_id}")
+        reference_binding = "DIRECT" if direct_reference_binding else "LEGACY_HASH_RECEIPT"
         reasons: list[str] = []
         tool_error = "."
         tiara_evaluated_bases = 0
@@ -297,6 +313,7 @@ def main() -> int:
                 "reported_sequencing_technology": report_metadata.get("Sequencing technology", "."),
                 "official_unmapped_long_records": ";".join(sorted(official_unmapped_long_records)) or ".",
                 "gate_reasons": ";".join(reasons) or ".",
+                "contamination_reference_binding": reference_binding,
                 "error": tool_error,
                 "status": "PASS" if not reasons else ("ERROR" if any("tool" in reason or "schema" in reason for reason in reasons) else "FAIL"),
             }
@@ -327,6 +344,8 @@ def main() -> int:
         "record_count": len(record_rows),
         "mask_interval_count": len(mask_rows),
         "status_counts": dict(sorted(status_counts.items())),
+        "contamination_reference_receipt_sha256": reference_receipt_sha256,
+        "contamination_legacy_binding_receipt_sha256": legacy_ready_sha256,
         "input_sha256": {
             "tasks": sha256(tasks_path),
             "candidates": sha256(candidates_path),

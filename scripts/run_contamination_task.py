@@ -22,6 +22,7 @@ from legumegenomefm.data_refinement import (
     merged_interval_bases,
     univec_hit_is_high_confidence,
 )
+from legumegenomefm.reference_integrity import validate_contamination_references
 
 
 def atomic_json(path: Path, value: object) -> None:
@@ -264,6 +265,12 @@ def main() -> int:
     started = time.monotonic()
     scratch_parent = Path(os.environ.get("SLURM_TMPDIR") or os.environ.get("TMPDIR") or "/tmp")
     try:
+        result["contamination_reference_receipt_sha256"] = validate_contamination_references(
+            project_root,
+            tiara_image,
+            univec_db,
+            qc_env / "bin/blastn",
+        )
         with tempfile.TemporaryDirectory(prefix=f"soycontam-{task['candidate_id']}-", dir=scratch_parent) as scratch_text:
             scratch = Path(scratch_text)
             genome = scratch / "genome.fa"
