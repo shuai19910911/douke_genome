@@ -197,6 +197,19 @@ def test_split_qc_controller_is_posix_portable_and_avoids_cu_and_fat() -> None:
     assert re.search(r"/(?:home|Users)/", text) is None
 
 
+def test_data_refinement_finalizer_is_posix_portable_and_avoids_cu_and_fat() -> None:
+    path = PROJECT_ROOT / "scripts/slurm/finalize_data_refinement.sbatch"
+    text = path.read_text()
+    assert text.startswith("#!/bin/sh\n")
+    assert "#SBATCH -p q02,q03,q04,q05" in text
+    assert "aggregate_busco_results.py" in text
+    assert "aggregate_record_qc.py" in text
+    assert "finalize_data_refinement.py" in text
+    assert "cu" not in text
+    assert "fat" not in text
+    assert re.search(r"/(?:home|Users)/", text) is None
+
+
 def test_large_local_qc_reference_assets_are_gitignored() -> None:
     text = (PROJECT_ROOT / ".gitignore").read_text()
     assert "data/reference/" in text.splitlines()
