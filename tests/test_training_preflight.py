@@ -107,6 +107,41 @@ def test_confined_relative_rejects_escape() -> None:
         _MODULE.confined_relative("/absolute", "path")
 
 
+def test_training_contract_must_be_explicitly_frozen() -> None:
+    _MODULE.validate_contract_status({"contract_status": "frozen"})
+    with pytest.raises(ValueError, match="not launchable.*superseded"):
+        _MODULE.validate_contract_status({"contract_status": "superseded"})
+    with pytest.raises(ValueError, match="not launchable.*missing"):
+        _MODULE.validate_contract_status({})
+
+
+def test_h20_candidate_static_ultralong_contract_is_internally_consistent() -> None:
+    root = Path(__file__).parents[1]
+    payload = yaml.safe_load((root / "configs/pretrain_h20_candidate.yaml").read_text())
+    _MODULE.validate_ultralong_static_contract(payload)
+    with pytest.raises(ValueError, match="not launchable.*profiling_required"):
+        _MODULE.validate_contract_status(payload)
+
+
+def test_ultralong_static_contract_rejects_unsynchronized_or_sample_weighted_buckets() -> None:
+    root = Path(__file__).parents[1]
+    payload = yaml.safe_load((root / "configs/pretrain_h20_candidate.yaml").read_text())
+    payload["mixed_context"]["synchronize_length_across_ranks"] = False
+    with pytest.raises(ValueError, match="synchronized"):
+        _MODULE.validate_ultralong_static_contract(payload)
+    payload["mixed_context"]["synchronize_length_across_ranks"] = True
+    payload["mixed_context"]["allocation_unit"] = "samples"
+    with pytest.raises(ValueError, match="token allocation"):
+        _MODULE.validate_ultralong_static_contract(payload)
+
+
+def test_h20_candidate_rejects_missing_runtime_profile_evidence() -> None:
+    root = Path(__file__).parents[1]
+    payload = yaml.safe_load((root / "configs/pretrain_h20_candidate.yaml").read_text())
+    with pytest.raises(ValueError, match="H20 profile receipt is not verified"):
+        _MODULE.validate_h20_runtime_evidence(payload, root)
+
+
 def test_gpu_contract_rejects_partial_final_global_batch_before_cuda_probe() -> None:
     payload = {
         "context_length": 1024,
@@ -119,14 +154,15 @@ def test_gpu_contract_rejects_partial_final_global_batch_before_cuda_probe() -> 
         _MODULE.validate_gpu_contract(payload, nproc=1, minimum_free_mib=1)
 
 
-def test_frozen_stage_budgets_are_complete_global_batches() -> None:
+def test_superseded_short_context_stage_budgets_remain_parseable() -> None:
     root = Path(__file__).parents[1]
     for path in sorted((root / "configs").glob("pretrain_stage*.yaml")):
         payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert payload["contract_status"] == "superseded", path
         assert payload["max_tokens"] % payload["global_batch_tokens"] == 0, path
 
 
-def test_formal_configs_resolve_to_portable_project_root() -> None:
+def test_superseded_short_context_configs_remain_portable() -> None:
     root = Path(__file__).parents[1].resolve()
     for path in sorted((root / "configs").glob("pretrain_stage*.yaml")):
         _, project_root, dataset, output = _MODULE.resolved_config(path)

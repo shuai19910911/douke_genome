@@ -1,92 +1,124 @@
-# LegumeGenomeFM-89M：训练准备进度
+# LegumeGenomeFM：实时执行进度
 
-> 记录日期：2026-07-19。当前状态为**数据/模型/代码已冻结，等待最终commit后的AutoDL release acceptance与目标GPU preflight**。尚未创建正式100B-token训练进程；RTX 2080 Ti结果均为真实工程验证，不冒充正式预训练。
+> 最后更新：2026-07-20 13:58 CST（UTC+08:00）。当前阶段：**精简数据深审＋超长架构候选实现**。正式训练未开始；旧440-source release和旧89M/16K训练合同均已撤销。
 
 ## 1. 状态总览
 
-| 工作流 | 状态 | 可核验证据 |
+| 工作流 | 状态 | 当前证据/说明 |
 |---|---|---|
-| 原始FASTA/ZIP genome审计 | PASS | `data_manifests/*fasta*`、`archive_genome*` |
-| 普通/ZIP annotation统一审计 | PASS | `unified_annotation_catalog.tsv`及summary |
-| 466个2-bit sequence store | PASS | 每store的`manifest.json`和`READY` |
-| 全局MinHash近重复 | PASS | `genome_similarity*`；466个候选、108,345对 |
-| RC/contig顺序/名称不敏感identity | PASS | `orientation_identity*`；466→440代表 |
-| 冻结训练dataset | READY | `data_release/training_dataset*`、`TRAINING_DATASET_READY` |
-| 唯一正式架构/tokenizer/100B预算 | FROZEN | `MODEL_ARCHITECTURE.md`、三个pretrain YAML |
-| 单GPU 1/4/16 kb训练步骤 | PASS | `gpu_validation.summary.json` |
-| Checkpoint完整恢复 | PASS | 同上；step 1→step 2状态闭合 |
-| 双GPU DDP | PASS | 同上；world size 2、独立物理GPU |
-| AutoDL builder/verifier/launcher | IMPLEMENTED | `scripts/build_autodl_release.py`等 |
-| 离线CUDA环境归档 | BUILT | Git外`workspace/autodl_assets/`，约3.192 GB |
-| 最终release deep verification | POST-COMMIT GATE | release manifest与SLURM验收日志，Git外保存 |
-| 目标AutoDL BF16 GPU preflight | WAITING FOR TARGET | 目标机上由`autodl_launch.sh`执行 |
-| 正式Stage 1训练 | NOT STARTED | 无正式PID、日志或checkpoint |
+| raw只读inventory | 已完成 | 3,841项，约195.529 GiB；`data_manifests/raw_inventory.tsv` |
+| FASTA/ZIP完整性 | 已完成 | 普通FASTA 550 PASS/2 FAIL；ZIP 197 PASS/4 invalid |
+| unified genome/annotation | 已完成 | genome 584 PASS；annotation 574来源、301主模型 |
+| exact/orientation/MinHash | 已完成 | 466个store和全局相似度证据 |
+| assembly/annotation初筛 | 已完成 | 167个深审候选；`data_refinement_candidates*` |
+| FASTA–GFF闭合 | 已完成 | 165 PASS、2 FAIL |
+| source provenance/license | 已完成但有排除 | 94 PASS；67需许可证审核、3 incomplete、3 no resolver |
+| BUSCO | 正在排队/运行链已建立 | 92个任务；当前2个双模式PASS |
+| Tiara/UniVec污染审计 | 正在排队/运行链已建立 | 92个任务；当前55个有效shard |
+| 最终代表与六长度capacity | 未开始 | 等BUSCO/污染完整聚合；中黄13 alias已统一 |
+| 精简data release | 未开始 | 旧440-source READY/manifest已删除 |
+| Nature/架构证据 | 已完成 | 36检索、2,958候选、30个核心记录验证；官方代码commit已固定 |
+| HierMamba候选配置/实现 | 已完成候选代码 | 256K、stride 128、Mamba-2双向core、RC conjoin |
+| 生产Mamba-2/H20 profile | 阻塞 | 当前环境无`mamba_ssm`/`causal_conv1d`；目标H20尚未probe |
+| 正式参数量与训练预算 | 未冻结 | preflight要求整数参数量和H20 PASS receipt |
+| 正式预训练 | 未开始 | 无正式PID、日志或checkpoint |
 
-## 2. 数据冻结结果
+## 2. 数据审计实况
 
-原始来源经过普通文件、ZIP成员、内容SHA、gzip/CRC、FASTA结构、annotation结构、exact content、MinHash、RC identity、材料版本和cold-genus边界审计。最终正式dataset：
+### 已核实
 
-- 440个RC归一化source；
-- 337个pretrain source，372,953,588,394个callable bases；
-- 103个cold-genus source，99,581,789,352个callable bases；
-- 总计472,535,377,746个callable bases；
-- 六个完整留出属：Arachis、Cercis、Chamaecrista、Cicer、Lupinus、Vigna；
-- 训练dataset SHA-256：`d154f7a4d0dd3bad2b556ec15188aa24c7d6d490cb5900a4fea3723751571bb3`；
-- READY-last release receipt SHA-256：`d6712a0207f10e89cb91f32c06cc9ff8b6f627557b963bb3cad41ea1ce7f3fdf`。
+- 普通FASTA：552个候选，550 PASS，2个截断gzip永久排除。
+- ZIP：201个，197 PASS，4个非法容器永久排除。
+- ZIP genome：34 PASS，其中30个为普通来源exact duplicate，4个为新增T2T候选。
+- unified genome：584个PASS来源、483个exact-unique序列。
+- unified annotation：574个来源、301个主gene model、15,973,108个gene feature。
+- sequence store：466/466 READY；原始和processed store当前保留，因为深审任务仍需使用。
+- annotation closure：167个候选中165 PASS、2 FAIL；失败候选存在未知seqid和越界feature。
+- source provenance/license：167个候选中94 PASS；67个候选在取得明确授权前进入`LICENSE_REVIEW_REQUIRED`，其中41个只有NCBI assembly report。NCBI政策说明submitter权利未转移给NCBI，因此assembly report只证明组装级别，不自动授予训练许可；另有3 incomplete、3 no resolver。
 
-关键修正：近重复初版只在相同binomial species内比较，无法证明跨taxon/cold-genus无污染。回归测试先改为跨taxon相同assembly必须同组并观察RED，随后将算法改为466个候选全局两两比较。最终发现2对跨taxon标签近重复；无near group或RC group跨pretrain/cold边界。
+### 当前深审任务集
 
-统一annotation catalog覆盖574个来源（537个普通文件、37个ZIP成员），其中301个primary gene model，共15,973,108个gene feature；568个来源有明确genome配对，6个没有。
+`data_manifests/data_refinement_busco_tasks.tsv`含92个候选，即同时通过annotation closure、source provenance和明确`public + open`许可证门禁的候选，覆盖27个物种、13个属。最终source数尚未产生。
 
-## 3. 正式模型与训练合同
+中黄13材料已通过显式alias统一：`zh13`、`whfsgmzh1310`、`zh13iga1005`、`gmaxzh13`、`gmaxzh13v20`最终只能保留一个代表；不采用模糊substring规则，因此不会误并`Zhongmu_No_1`等其他材料。
 
-唯一正式模型为LegumeGenomeFM-89M：17-token单碱基词表、640 hidden size、18个分层膨胀卷积block、精确RC输出对称、88,946,028参数、最大16,384 bp上下文。
+## 3. SLURM状态
 
-三个共享参数stage：
+用户当前资源规则：不使用`fat`，暂时不向`cu`提交CPU任务。所有本轮脚本和repair/controller均限定`q02,q03,q04,q05`。
 
-1. 1,024 bp：34,999,894,016 tokens，133,514步；
-2. 4,096 bp：34,999,894,016 tokens，66,757步；
-3. 16,384 bp：29,999,759,360 tokens，57,220步。
+当前持久链：
 
-总预算99,999,547,392 tokens、257,491个完整optimizer steps。Stage 3曾发现max token不被global batch整除、会隐式多跑尾部batch；现已修为精确整步值，并加入合成与三个正式YAML的回归门禁。
+| Job | 作用 | CPU/内存 | 分区 | 状态（13:58 CST） |
+|---:|---|---|---|---|
+| 8605100 | 首轮Tiara/UniVec补算16项 | 4 CPU / 32G | q02–q05 | PENDING (Priority) |
+| 8605101 | 首轮protein BUSCO补算24项 | 4 CPU / 8G | q02–q05 | PENDING (Priority) |
+| 8605102 | 首轮genome BUSCO tiny补算16项 | 4 CPU / 48G | q02–q05 | PENDING (Priority) |
+| 8605103 | 持久split-QC控制器 | 1 CPU / 2G | q02–q05 | PENDING (Dependency) |
 
-## 4. 真实GPU证据
+8-CPU元素在节点碎片条件下预计等待更久，已在未运行时取消并改为4 CPU；BUSCO质量参数未改变。持久控制器依赖首轮数组结束，之后只补missing/invalid shard。当前没有本人`cu` CPU任务。
 
-`data_manifests/gpu_validation.summary.json`记录：
+## 4. 本轮代码与合同
 
-- RTX 2080 Ti、PyTorch 2.5.1+cu124；
-- 1 kb、4 kb和16 kb forward/backward/optimizer均PASS；
-- 三种长度`rc_max_abs_error=0.0`；
-- 16 kb峰值allocated约3.49 GB、reserved约3.68 GB；
-- 25%显存配额出现预期OOM，35%配额PASS；
-- 单卡完整checkpoint resume从1,024 tokens恢复到2,048 tokens；
-- 双卡DDP使用两个独立物理GPU，world size 2；
-- FP16 overflow会重试，不错误增加optimizer step或tokens_seen；
-- A100未使用，未伪造A100吞吐。
+### 数据精简
 
-## 5. AutoDL迁移闭包
+- 新增assembly/annotation/来源/BUSCO/污染/最终选择模块和回归测试；
+- worker独立写JSON shard，聚合器严格检查missing/extra/duplicate；
+- BUSCO在节点scratch目录运行，不再向项目根散落`busco_*.log`；
+- 来源、annotation、BUSCO、污染和最终selection均fail-closed；
+- material alias用于最终选择，并保留原始material key用于审计。
 
-release builder只从`git archive HEAD`提取跟踪文件，防止把secret、未提交代码或本地checkpoint带入包中。数据store按hardlink→reflink→copy回退，跨文件系统copy分支已经KB级真实end-to-end deep smoke；同文件系统正式staging可使用hardlink而不复制约125 GB payload。
+### 超长架构
 
-release还携带由当前PyTorch/CUDA环境产生的可重定位`conda-pack`归档。bootstrap优先离线解包，执行`conda-unpack`和本地editable install；无归档时才回退wheelhouse/uv。
+候选机器合同：`configs/pretrain_h20_candidate.yaml`。
 
-最终release必须在包含本文件的commit之后构建，因此它的`AUTODL_RELEASE_MANIFEST.json`、deep-verification输出和环境重定位receipt有意保存在Git外。这样避免“先写成功文档、再改变commit、导致release绑定旧commit”的循环。
+- 上下文：1K/8K/32K/64K/128K/256K；
+- 每GPU每microstep固定262,144输入token；
+- 单一optimizer/scheduler/checkpoint lineage；
+- 128-bp层次化latent，256K对应2,048个global token；
+- 24层双向Mamba-2 global core；
+- U-Net base-resolution decoder；
+- 完整模型正向/RC双路logit对齐均值；
+- loss接口返回`loss_sum`和`masked_token_count`，供DDP全局归一化。
 
-## 6. 测试状态
+生产Mamba-2缺失时模型在大参数分配前立即拒绝，不以Identity或旧卷积替代。preflight只有在`contract_status: frozen`、参数量整数、H20六长度profile、2/3卡DDP、显存余量、kernel对比和新data release均PASS时才放行。
 
-最新全套回归：**99 passed**。范围包括FASTA/ZIP、2-bit store、streaming producer、全局相似度、RC identity、sampler、tokenizer/MLM、RC模型、checkpoint、resume、overflow/DDP语义、AutoDL跨盘staging、release verifier、dataset preflight和整步预算。
+## 5. 文档与清理
 
-正式dataset另完成逐store preflight：440/440 READY/hash一致，337个pretrain权重为正、103个cold-genus权重为0，sampling weight总和在浮点容差内为1。
+- `TRAINING_PLAN.md`已从头重写，覆盖科学问题、Nature证据、数据、训练、评测、统计、图件、风险、迁移与停止标准。
+- `MODEL_ARCHITECTURE.md`已重写为唯一HierMamba候选，旧89M数字不再作为正式合同。
+- 旧`README.md`已删除，项目最终只保留任务要求的三个Markdown文档。
+- 旧440-source `TRAINING_DATASET_READY`、dataset、release和summary已删除。
+- 旧121-GB AutoDL release和旧环境验收payload已不存在。
+- 已删除21个根目录BUSCO日志、旧pilot目录、失败/取消数组日志和Python cache，共81个无用路径；两轮许可证门禁收紧后又删除46个已排除候选shard（约5.78 MB）。当前仅保留92项任务集实际引用的shard。
+- 466个sequence store暂不垃圾回收，因为92项深审仍依赖；最终引用闭合后才删除未引用store。
 
-## 7. 下一动作与停止边界
+## 6. 环境、Git与测试
 
-提交本轮冻结产物后，按顺序执行：
+- Python：3.10.20；
+- PyTorch：已安装（生产训练版本尚未因H20重新锁定）；
+- Triton：已安装；
+- `mamba_ssm`：未安装；
+- `causal_conv1d`：未安装；
+- A100：本轮未使用；
+- H20：尚未使用/尚未probe。
 
-1. 从该commit构建正式AutoDL release；
-2. 在计算节点完成quick + deep验证（包括全部store packed SHA）；
-3. 完成离线环境解包/重定位/import验证；
-4. 将release迁移到AutoDL；
-5. 在目标GPU运行BF16、显存和world-size preflight；
-6. 只有preflight PASS后才以`MODE=fresh`启动Stage 1。
+Git：`main`，当前基线commit为`d750f74a288e093b8c0ad7a3b6f6d02fcfa61625`，与`origin/main`基线一致；本轮修改尚未提交。
 
-如果目标AutoDL GPU尚未提供，工程应停在“可迁移、待目标机preflight”，不在2080 Ti上误启动正式BF16 run，也不把验证checkpoint称为训练开始。
+本轮真实定点测试：
+
+- 数据精简单文件：20 passed；
+- HierMamba＋training preflight：13 passed；
+- 最近一次preflight单文件：10 passed；
+- 完整`pytest`：130 passed（127.37 s）；同时shell语法、YAML/JSON解析和`git diff --check`均PASS。
+
+## 7. 当前阻塞
+
+1. q02–q05作业因Priority等待；按用户指令不能切到cu/fat。
+2. 92个明确开放候选的双模式BUSCO与污染shard尚未完整。
+3. 最终精简source数、六长度capacity、cold-genus和release hash尚未产生。
+4. 目标H20环境尚不可访问，无法冻结Mamba-2生产依赖、精确参数量、BF16显存/吞吐、global batch和总token预算。
+5. 正式架构图应在参数与shape实测冻结后生成，避免图文数字先于代码。
+
+## 8. 下一步唯一优先任务
+
+持续监控并完成job 8605100/8605101/8605102及其持久控制器8605103；BUSCO和污染结果完整后立即聚合、执行最终同材料/同序列代表选择、生成六长度capacity与精简data release。期间不向cu/fat提交CPU任务。

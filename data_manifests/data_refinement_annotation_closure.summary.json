@@ -1,0 +1,12 @@
+{
+  "candidate_count": 167,
+  "candidate_tsv_sha256": "25eea2d99eef498196091e3dfac94446df4e6adb8018372d65a7a682f962fa70",
+  "closure_tsv_sha256": "4f7927cf028e2d697c60f3d6333c6ca341a8ef64c1c62e2a1cef26744d83fafd",
+  "error_count": 0,
+  "fail_count": 2,
+  "out_of_bounds_candidate_count": 2,
+  "pass_count": 165,
+  "schema_version": "1.0",
+  "state": "INCOMPLETE",
+  "unknown_seqid_candidate_count": 2
+}

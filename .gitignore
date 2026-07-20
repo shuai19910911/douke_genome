@@ -1,6 +1,7 @@
 # Raw and generated data
 data/raw/
 data/processed/
+data/reference/
 data/shards/
 checkpoints/
 results/

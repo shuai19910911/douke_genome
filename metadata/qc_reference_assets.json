@@ -1,0 +1,28 @@
+{
+  "busco": {
+    "busco_count": 2326,
+    "catalog_date": "2024-01-08",
+    "creation_date": "2024-01-08",
+    "download_catalog_md5": "38ece5baf0523143fc6594030bca4487",
+    "lineage": "eudicots_odb10",
+    "orthodb_version": "10.1",
+    "source": "https://busco-data.ezlab.org/v5/data/lineages/"
+  },
+  "local_assets": {
+    "policy": "data/reference is gitignored; rebuild or transfer only after verifying this lock",
+    "tiara_image_bytes": 587227136
+  },
+  "schema_version": "1.0",
+  "state": "LOCKED_LOCAL_ASSETS_NOT_TRACKED",
+  "tiara": {
+    "image_sha256": "a651b6c7bc403cbe210df3fbd70ae731ce17e2850a73ebcdc0676203019c12a0",
+    "manifest_digest": "sha256:49c5364104094e2efb4d0cd76cb2abb5d4e21927cf9f0c52cfb7465b076d04c6",
+    "source": "docker://quay.io/biocontainers/tiara:1.0.3",
+    "tool_version": "1.0.3"
+  },
+  "univec": {
+    "readme_sha256": "c5fd2af898c5eab73578d40bcb983f56d69c3296774db572252d7094f84400d8",
+    "sequence_sha256": "ea5d15248a4f438069ffa70bb6088f28935379354ea3e924cc5d6db40be92c5c",
+    "source": "https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec_Core"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "candidate_count": 167,
+  "candidate_tsv_sha256": "25eea2d99eef498196091e3dfac94446df4e6adb8018372d65a7a682f962fa70",
+  "config_sha256": "16536230836f98c1bf166c35a7cb3a502f47a639fdb383bbcb76924a338d3d4c",
+  "provenance_tsv_sha256": "f09d412b8b194ba2276af6dc6c1fb7a83174a048b78d8afbbe633ee46687e023",
+  "schema_version": "1.0",
+  "state": "INCOMPLETE",
+  "status_counts": {
+    "INCOMPLETE_METADATA": 3,
+    "LICENSE_REVIEW_REQUIRED": 67,
+    "PASS": 94,
+    "PENDING_NO_RESOLVER": 3
+  }
+}

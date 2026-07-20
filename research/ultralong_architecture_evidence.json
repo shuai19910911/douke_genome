@@ -1,0 +1,129 @@
+{
+  "schema_version": "1.0",
+  "retrieved_at": "2026-07-20",
+  "source": "https://export.arxiv.org/api/query",
+  "hardware_assumptions": {
+    "gpu_count": "2-3",
+    "gpu_model": "NVIDIA H20",
+    "memory_per_gpu_gib": 96,
+    "source": "user-provided; all throughput, memory and kernel support remain runtime gates"
+  },
+  "literature_audit": {
+    "systematic_search": "data_manifests/literature_search.summary.json",
+    "verified_core_registry": "data_manifests/core_literature_verified.tsv",
+    "methods_evidence_matrix": "data_manifests/literature_evidence_matrix.tsv",
+    "cutoff_date": "2026-07-18",
+    "query_count": 36,
+    "unique_candidate_count": 2958,
+    "nature_portfolio_candidate_count": 154,
+    "verified_record_count": 30,
+    "verified_failure_count": 0,
+    "architecture_relevant_findings": [
+      "Enformer, Borzoi and AlphaGenome support multiscale compression with base- or fine-resolution decoding for long sequence-to-function tasks.",
+      "Evo 2 and HyenaDNA support single-base long-context sequence operators but at compute scales or domains that cannot be copied directly.",
+      "Caduceus and PlantCaduceus support explicit bidirectionality and reverse-complement treatment.",
+      "The Nature Communications benchmark shows that foundation models do not automatically beat simple supervised baselines, requiring matched external comparators and leakage-safe splits."
+    ]
+  },
+  "decision_boundary": {
+    "formal_contexts_bp": [1024, 8192, 32768, 65536, 131072, 262144],
+    "must_have": [
+      "linear_or_subquadratic_sequence operator at 262144 single-base tokens",
+      "bidirectional context",
+      "reverse-complement-aware training and evaluation",
+      "one continuous optimizer/checkpoint lineage across synchronized mixed-length batches",
+      "measured H20 memory and throughput gates before freezing the kernel"
+    ],
+    "primary_candidate": "hierarchical single-base encoder-decoder with 128-bp latent stride, a bidirectional Mamba-2 global core, and whole-model reverse-complement conjoining",
+    "required_comparator": "HyenaDNA/Hyena long-convolution operator under the same parameter, token and context budgets",
+    "rejected_without_spike": [
+      "quadratic full attention at 262144 tokens",
+      "the revoked local convolution plus global-mean mixer",
+      "claiming Mamba-2 support from paper evidence without compiling and profiling the actual H20 stack",
+      "four full-resolution scans per block from directly stacking Caduceus RCPS and bidirectional wrappers at 262144 bases"
+    ]
+  },
+  "repository_audit": {
+    "caduceus": {
+      "repository": "https://github.com/kuleshov-group/caduceus",
+      "commit": "0060a6d8079b6a040fc55d505e15972a327b70a6",
+      "observations": [
+        "The published BiMamba wrapper runs forward and reversed Mamba streams and can tie their input/output projections.",
+        "The RCPS wrapper doubles representation channels and applies the same submodule to forward and reverse-complement streams.",
+        "The released model imports the original Mamba operator; replacing it with Mamba-2 is a new implementation rather than a verified drop-in scientific result."
+      ]
+    },
+    "mamba": {
+      "repository": "https://github.com/state-spaces/mamba",
+      "commit": "f577286d052741c35d39cd43bdc3fad27120f22c",
+      "observations": [
+        "The audited Mamba2 class defaults to d_state=128, expand=2, headdim=64 and chunk_size=256.",
+        "Its fused training path calls the Triton SSD chunk-scan kernels, so CUDA, Triton, causal-conv1d and H20 compatibility are runtime gates.",
+        "The official implementation exposes tensor/sequence parallel options, but this project must first verify ordinary DDP and exact mixed-length semantics on two and three H20 GPUs."
+      ]
+    }
+  },
+  "architecture_boundary": {
+    "base_resolution": "one nucleotide per input token and one nucleotide per MLM output",
+    "latent_stride_bp": 128,
+    "maximum_global_latent_length": 2048,
+    "local_path": "multiscale convolutional encoder-decoder with base-resolution skip features",
+    "global_path": "bidirectional Mamba-2 over 128-bp latent tokens",
+    "reverse_complement_contract": "average forward logits with reverse-complement-aligned logits from the same complete backbone",
+    "reason": "At 256K bases, hierarchy retains base-resolution labels while avoiding repeated full-width state-space scans in every deep global block.",
+    "freeze_blockers": [
+      "exact trainable parameter count from the implemented model",
+      "Mamba-2 build and numerical smoke on the target H20 software stack",
+      "BF16 forward/backward/optimizer memory and throughput at every formal context",
+      "two-GPU and three-GPU synchronized length-bucket DDP tests",
+      "comparison with an equal-budget Hyena global operator before one kernel is frozen"
+    ]
+  },
+  "papers": [
+    {
+      "arxiv_id": "2405.21060v1",
+      "title": "Transformers are SSMs: Generalized Models and Efficient Algorithms Through Structured State Space Duality",
+      "authors": ["Tri Dao", "Albert Gu"],
+      "published": "2024-05-31",
+      "url": "https://arxiv.org/abs/2405.21060v1",
+      "evidence": "Mamba-2/SSD supplies the main linear-time operator candidate and reports a 2-8x core-layer speedup over Mamba while retaining language-model quality.",
+      "limitation": "The paper does not validate this repository, DNA reverse-complement semantics, 256K mixed-length training, or the target H20 software stack."
+    },
+    {
+      "arxiv_id": "2312.00752v2",
+      "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
+      "authors": ["Albert Gu", "Tri Dao"],
+      "published": "2023-12-01",
+      "url": "https://arxiv.org/abs/2312.00752v2",
+      "evidence": "Selective state spaces provide content-dependent propagation with linear sequence scaling and demonstrated genomics applicability up to million-length sequences.",
+      "limitation": "The base Mamba block is directional and does not by itself enforce DNA reverse-complement equivariance."
+    },
+    {
+      "arxiv_id": "2403.03234v2",
+      "title": "Caduceus: Bi-Directional Equivariant Long-Range DNA Sequence Modeling",
+      "authors": ["Yair Schiff", "Chia-Hsiang Kao", "Aaron Gokaslan", "Tri Dao", "Albert Gu", "Volodymyr Kuleshov"],
+      "published": "2024-03-05",
+      "url": "https://arxiv.org/abs/2403.03234v2",
+      "evidence": "BiMamba and MambaDNA directly address bidirectionality and reverse-complement equivariance; Caduceus reports gains on long-range variant-effect prediction.",
+      "limitation": "Its published implementation is based on the Mamba generation available at the time; a Mamba-2 substitution must be treated as a new implementation and tested."
+    },
+    {
+      "arxiv_id": "2306.15794v2",
+      "title": "HyenaDNA: Long-Range Genomic Sequence Modeling at Single Nucleotide Resolution",
+      "authors": ["Eric Nguyen", "Michael Poli", "Marjan Faizi", "Armin Thomas", "Callum Birch-Sykes", "Michael Wornow", "Aman Patel", "Clayton Rabideau", "Stefano Massaroli", "Yoshua Bengio", "Stefano Ermon", "Stephen A. Baccus", "Chris Ré"],
+      "published": "2023-06-27",
+      "url": "https://arxiv.org/abs/2306.15794v2",
+      "evidence": "Demonstrates single-nucleotide genomic pretraining up to one million tokens with subquadratic long convolutions and strong genomic benchmarks.",
+      "limitation": "Human-reference pretraining and its reported task suite do not establish crop cross-species generalization or H20 efficiency."
+    },
+    {
+      "arxiv_id": "2302.10866v3",
+      "title": "Hyena Hierarchy: Towards Larger Convolutional Language Models",
+      "authors": ["Michael Poli", "Stefano Massaroli", "Eric Nguyen", "Daniel Y. Fu", "Tri Dao", "Stephen Baccus", "Yoshua Bengio", "Stefano Ermon", "Christopher Ré"],
+      "published": "2023-02-21",
+      "url": "https://arxiv.org/abs/2302.10866v3",
+      "evidence": "Implicit long convolutions plus data-controlled gating provide a subquadratic alternative with reported efficiency advantages at 64K.",
+      "limitation": "The efficiency claims are hardware and implementation dependent and must be re-profiled at 128K/256K on H20."
+    }
+  ]
+}

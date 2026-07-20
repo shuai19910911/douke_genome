@@ -1,4 +1,6 @@
 project_root: ..
+contract_status: superseded
+superseded_reason: replaced_by_h20_ultralong_context_redesign
 dataset_manifest: data_release/training_dataset.json
 output_dir: runs/formal/stage2_4kb
 context_length: 4096

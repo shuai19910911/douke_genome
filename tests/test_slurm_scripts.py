@@ -151,3 +151,54 @@ def test_archive_annotation_qc_slurm_chain_uses_dynamic_ordinary_array() -> None
     combined = sbatch_text + submit_text
     assert re.search(r"/(?:home|Users)/", combined) is None
     assert re.search(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", combined) is None
+
+
+def test_data_refinement_sbatch_is_posix_and_excludes_fat() -> None:
+    path = PROJECT_ROOT / "scripts" / "slurm" / "audit_data_refinement.sbatch"
+    text = path.read_text()
+    assert text.startswith("#!/bin/sh\n")
+    assert "PROJECT_ROOT=${PROJECT_ROOT:?" in text
+    assert "PYTHON_BIN=${PYTHON_BIN:?" in text
+    assert "CONFIG=${CONFIG:?" in text
+    assert "OUTPUT=${OUTPUT:?" in text
+    assert "audit_data_refinement.py" in text
+    assert "#SBATCH -p q02,q03,q04,q05" in text
+    assert "cu" not in text
+    assert "fat" not in text
+    assert re.search(r"/(?:home|Users)/", text) is None
+
+
+def test_annotation_closure_sbatch_is_posix_and_excludes_fat() -> None:
+    path = PROJECT_ROOT / "scripts" / "slurm" / "audit_annotation_closure.sbatch"
+    text = path.read_text()
+    assert text.startswith("#!/bin/sh\n")
+    assert "PROJECT_ROOT=${PROJECT_ROOT:?" in text
+    assert "PYTHON_BIN=${PYTHON_BIN:?" in text
+    assert "CANDIDATES=${CANDIDATES:?" in text
+    assert "OUTPUT=${OUTPUT:?" in text
+    assert "audit_annotation_closure.py" in text
+    assert "#SBATCH -p q02,q03,q04,q05" in text
+    assert "cu" not in text
+    assert "fat" not in text
+    assert re.search(r"/(?:home|Users)/", text) is None
+
+
+def test_split_qc_controller_is_posix_portable_and_avoids_cu_and_fat() -> None:
+    path = PROJECT_ROOT / "scripts" / "slurm" / "run_split_qc_controller.sbatch"
+    text = path.read_text()
+    assert text.startswith("#!/bin/sh\n")
+    assert "#SBATCH -p q02,q03,q04,q05" in text
+    assert "PROJECT_ROOT=${PROJECT_ROOT:?" in text
+    assert "TASKS=${TASKS:?" in text
+    assert "PYTHON_BIN=${PYTHON_BIN:?" in text
+    assert "submit_split_qc_batches.py" in text
+    assert "cu" not in text
+    assert "fat" not in text
+    assert re.search(r"/(?:home|Users)/", text) is None
+
+
+def test_large_local_qc_reference_assets_are_gitignored() -> None:
+    text = (PROJECT_ROOT / ".gitignore").read_text()
+    assert "data/reference/" in text.splitlines()
+    lock = PROJECT_ROOT / "metadata" / "qc_reference_assets.json"
+    assert lock.is_file()

@@ -1,0 +1,107 @@
+schema_version: "2.0-candidate"
+contract_status: profiling_required
+contract_reason: refined_data_release_and_h20_kernel_profile_not_yet_complete
+project_root: ..
+dataset_manifest: data_release/training_dataset.json
+output_dir: runs/formal/hiermamba_continuous
+model:
+  name: LegumeGenomeFM-HierMamba
+  implementation: legumegenomefm.hiermamba.HierMambaForMaskedLM
+  vocabulary: [PAD, MASK, A, C, G, T, N]
+  vocabulary_size: 7
+  tie_input_output_embeddings: true
+  maximum_context_bp: 262144
+  base_embedding_dim: 128
+  encoder_channels: [128, 192, 256, 384, 512, 768, 1024, 1024]
+  encoder_strides: [1, 2, 2, 2, 2, 2, 2, 2]
+  residual_blocks_per_scale: [2, 2, 2, 2, 2, 2, 2, 2]
+  local_kernel_size: 7
+  latent_stride_bp: 128
+  global_core:
+    operator: mamba2_bidirectional
+    d_model: 1024
+    n_layer: 24
+    d_state: 128
+    d_conv: 4
+    expand: 2
+    headdim: 64
+    ngroups: 8
+    chunk_size: 256
+    bidirectional_strategy: add
+    tie_forward_reverse_projections: true
+    backend_status: h20_profile_required
+  decoder: mirrored_unet
+  base_resolution_skip: true
+  reverse_complement:
+    mechanism: whole_model_conjoin
+    combine: aligned_logit_mean
+    exact_output_contract: true
+  parameter_count: pending_implementation_and_unique_parameter_audit
+contexts: [1024, 8192, 32768, 65536, 131072, 262144]
+context_token_fractions:
+  1024: 0.10
+  8192: 0.15
+  32768: 0.20
+  65536: 0.20
+  131072: 0.20
+  262144: 0.15
+micro_batch_per_gpu:
+  1024: 256
+  8192: 32
+  32768: 8
+  65536: 4
+  131072: 2
+  262144: 1
+microstep_tokens_per_gpu: 262144
+mixed_context:
+  allocation_unit: tokens
+  bucket_choice: optimizer_step
+  synchronize_length_across_ranks: true
+  single_optimizer_lineage: true
+  single_scheduler_lineage: true
+  progress_unit: tokens_seen
+  loss_normalization: global_masked_tokens
+objective:
+  name: span_mlm
+  mask_ratio: 0.15
+  mean_span_length: 3.0
+  replacement_probabilities:
+    mask: 0.8
+    random_acgt: 0.1
+    unchanged: 0.1
+optimizer:
+  name: AdamW
+  betas: [0.9, 0.95]
+  weight_decay: 0.1
+  gradient_clip_norm: 1.0
+  peak_learning_rate: pending_h20_profile_and_parameter_freeze
+  warmup_tokens: pending_h20_profile_and_total_budget
+  total_tokens: pending_final_data_capacity_and_h20_throughput
+precision: bf16
+activation_checkpointing: true
+distributed:
+  strategy: DDP
+  supported_world_sizes: [2, 3]
+  bucket_broadcast_from_rank0: true
+  nonfinite_update_counts_as_step: false
+hardware_contract:
+  target_gpu: NVIDIA H20
+  user_reported_memory_gib: 96
+  runtime_probe_required: true
+  minimum_free_memory_fraction_after_peak: 0.10
+  required_profile_contexts: [1024, 8192, 32768, 65536, 131072, 262144]
+  profile_receipt: data_manifests/h20_ultralong_profile.json
+  profile_receipt_status: missing
+kernel_contract:
+  primary_operator: mamba2
+  comparator: hyena_equal_parameter_equal_token
+  selection_status: profiling_required
+  mamba_repository_commit: f577286d052741c35d39cd43bdc3fad27120f22c
+  caduceus_repository_commit: 0060a6d8079b6a040fc55d505e15972a327b70a6
+checkpoint:
+  atomic_directory: true
+  ready_last: true
+  bind_config_hash: true
+  bind_implementation_hash: true
+  bind_dataset_release_hash: true
+  save_optimizer_scheduler_rng_sampler: true

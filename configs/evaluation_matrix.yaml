@@ -1,6 +1,8 @@
-schema_version: "1.0"
-frozen_on: "2026-07-19"
-pretraining_cold_genera: [Arachis, Cercis, Chamaecrista, Cicer, Lupinus, Vigna]
+schema_version: "2.0-candidate"
+contract_status: pending_refined_data_and_h20_freeze
+formal_contexts: [1024, 8192, 32768, 65536, 131072, 262144]
+pretraining_cold_genera: []
+cold_genus_status: pending_rebuild_after_final_data_selection
 common_leakage_groups:
   - orientation_group_id
   - near_duplicate_group_id
@@ -18,7 +20,7 @@ baseline_suite:
     - random_init_same_architecture
     - single_species_pretraining_same_budget
     - no_reverse_complement_symmetrization
-    - single_context_4096_same_token_budget
+    - single_context_8192_same_token_budget
     - unbalanced_species_sampling
   external:
     - GPN
@@ -182,7 +184,7 @@ tasks:
     category: long_context
     core: false
     availability: pending_3D_or_perturbation_labels
-    unit: promoter-candidate region pair up to 16384 bp
+    unit: promoter-candidate region pair up to 262144 bp
     labels: experimentally supported links only
     split: chromosome and gene-family grouped
     metrics: [auPRC, recall_at_10]

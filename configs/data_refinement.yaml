@@ -1,0 +1,65 @@
+schema_version: "1.0"
+policy_status: candidate_only_not_trainable
+candidate_universe: data_manifests/genome_sketch_candidates.tsv
+sequence_store_root: data/processed/sequence_store
+assembly:
+  accepted_official_levels: [Complete Genome, Chromosome]
+  recognize_t2t_label_as_provisional: true
+  structural_proxy:
+    minimum_n50: 10000000
+    long_sequence_threshold: 10000000
+    minimum_fraction_in_long_sequences: 0.80
+  minimum_primary_nuclear_fraction: 0.90
+  maximum_n_fraction: 0.10
+annotation:
+  require_exactly_one_strict_primary_model: true
+  require_positive_gene_count: true
+  require_zero_duplicate_gene_ids: true
+  require_zero_duplicate_transcript_ids: true
+  require_zero_malformed_lines: true
+  require_zero_invalid_coordinates: true
+  require_zero_invalid_strands: true
+  require_zero_invalid_phases: true
+source_provenance:
+  allowed_public_access_levels: [public]
+  allowed_licenses: [open]
+  accepted_taxon_aliases:
+    "Glycine stenophita": ["Glycine stenophiyta"]
+    "Glycine D3-tomentella": ["Glycine D3 tomentella"]
+deduplication:
+  one_per_orientation_group: true
+  one_per_species_material: true
+  do_not_collapse_distinct_materials_by_near_duplicate_group: true
+  material_aliases:
+    "Glycine max":
+      zh13: [zh13, whfsgmzh1310, zh13iga1005, gmaxzh13, gmaxzh13v20]
+contexts: [1024, 8192, 32768, 65536, 131072, 262144]
+busco:
+  lineage: eudicots_odb10
+  minimum_genome_complete_percent: 90.0
+  minimum_annotation_complete_percent: 90.0
+  duplicated_buscos_count_as_complete: true
+contamination:
+  tiara_minimum_contig_length: 3000
+  tiara_chunk_length: 1000000
+  tiara_minimum_acgt_fraction: 0.5
+  tiara_probability_cutoff: 0.65
+  tiara_mask_classes: [archaea, bacteria, prokarya, organelle, mitochondria, plastid]
+  minimum_primary_tiara_evaluated_fraction: 0.95
+  univec_high_confidence:
+    - {minimum_alignment_length: 50, minimum_percent_identity: 90.0}
+    - {minimum_alignment_length: 30, minimum_percent_identity: 95.0}
+  mask_primary_tiara_non_eukaryotic_chunks: true
+  maximum_primary_prokaryotic_fraction: 0.005
+  maximum_primary_vector_fraction: 0.0001
+expected_material_representatives: {}
+required_single_materials:
+  - "Glycine max|zh13"
+pending_before_formal_freeze:
+  - verify_source_or_publication_chromosome_evidence_for_t2t_and_structural_proxy_rows
+  - verify_fasta_gff_seqid_length_and_coordinate_closure
+  - verify_genome_and_annotation_busco_completeness
+  - verify_assembly_qv_and_chromosome_anchored_fraction_when_available
+  - screen_taxonomic_vector_and_organelle_contamination
+  - restrict_long_context_catalogs_to_primary_nuclear_chromosomes
+  - recompute_duplicate_graph_and_cold_genus_split_after_final_selection

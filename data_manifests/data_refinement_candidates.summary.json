@@ -1,0 +1,117 @@
+{
+  "candidate_count": 466,
+  "candidate_tsv_sha256": "25eea2d99eef498196091e3dfac94446df4e6adb8018372d65a7a682f962fa70",
+  "context_catalogs": {
+    "1024": {
+      "eligible_source_count": 140,
+      "nonoverlap_window_count": 193961002
+    },
+    "131072": {
+      "eligible_source_count": 140,
+      "nonoverlap_window_count": 1371782
+    },
+    "262144": {
+      "eligible_source_count": 134,
+      "nonoverlap_window_count": 659786
+    },
+    "32768": {
+      "eligible_source_count": 140,
+      "nonoverlap_window_count": 5788102
+    },
+    "65536": {
+      "eligible_source_count": 140,
+      "nonoverlap_window_count": 2822190
+    },
+    "8192": {
+      "eligible_source_count": 140,
+      "nonoverlap_window_count": 23901274
+    }
+  },
+  "expected_material_representatives": {},
+  "hard_gate_pass_count": 167,
+  "hard_gate_reason_counts": {
+    "insufficient_chromosome_scale_evidence": 39,
+    "n_fraction_above_limit": 31,
+    "strict_annotation_count_0": 260,
+    "strict_annotation_count_2": 4
+  },
+  "input_sha256": {
+    "annotation_qc": "b23c3a1201e867a8a83348135db2c0a6ee050aabe8e2981db2311745197528fa",
+    "archive_annotation_qc": "ff3fe4e7263d66ee558711113984f9d583914bfc43f6615d84b7f842ac71c0d3",
+    "archive_genome_qc": "d9e4f65c736d4010ed3ac2c371e628e87d04012a0971a96df7d5efc3e2fc3d55",
+    "assembly_candidates": "547875ba4ae479e254816750bc23ca87cea33ab94ac1669cf7c3e7e10736a2a8",
+    "candidate_universe": "1d3e19bdab4ea7540e11578cbf6334d76fb2e169acdcb66e98995b3c5e74dd5d",
+    "config": "d0e0a224632ed014f3768c9bd05ccd29a859f0e1500119d078676f25f30a0ae0",
+    "near_duplicate_clusters": "e8e6d377b1fa230285494d71edcccf335208b57fb2de3472082f0ca2eebdc3cd",
+    "orientation_identity": "4eccf2902223e6759274b02f99f1f9f90fc5e460a5a7cd491d50b067761705ce"
+  },
+  "pending_before_formal_freeze": [
+    "verify_source_or_publication_chromosome_evidence_for_t2t_and_structural_proxy_rows",
+    "verify_fasta_gff_seqid_length_and_coordinate_closure",
+    "verify_genome_and_annotation_busco_completeness",
+    "verify_assembly_qv_and_chromosome_anchored_fraction_when_available",
+    "screen_taxonomic_vector_and_organelle_contamination",
+    "restrict_long_context_catalogs_to_primary_nuclear_chromosomes",
+    "recompute_duplicate_graph_and_cold_genus_split_after_final_selection"
+  ],
+  "policy_status": "candidate_only_not_trainable",
+  "required_single_materials": [
+    "Glycine max|zh13"
+  ],
+  "schema_version": "1.0",
+  "selected_base_count": 199970842914,
+  "selected_by_assembly_evidence": {
+    "chromosome_official": 38,
+    "chromosome_official_t2t": 1,
+    "complete_genome": 2,
+    "structural_proxy": 96,
+    "t2t_label": 3
+  },
+  "selected_by_genus": {
+    "Aeschynomene": 1,
+    "Apios": 2,
+    "Arachis": 14,
+    "Bauhinia": 1,
+    "Cajanus": 4,
+    "Canavalia": 1,
+    "Cercis": 2,
+    "Chamaecrista": 1,
+    "Cicer": 1,
+    "Clitoria": 1,
+    "Crotalaria": 1,
+    "Flemingia": 1,
+    "Glycine": 63,
+    "Lablab": 1,
+    "Lathyrus": 2,
+    "Lens": 2,
+    "Lotus": 1,
+    "Lupinus": 4,
+    "Medicago": 6,
+    "Phaseolus": 9,
+    "Pisum": 1,
+    "Psophocarpus": 1,
+    "Senna": 1,
+    "Spatholobus": 1,
+    "Sphenostylis": 1,
+    "Trifolium": 4,
+    "Vicia": 4,
+    "Vigna": 9
+  },
+  "selected_by_source": {
+    "legume_family_legumeinfo": 60,
+    "legume_family_ncbi": 41,
+    "legumeinfo": 36,
+    "soyod": 3
+  },
+  "selected_candidate_count": 140,
+  "selected_genus_count": 28,
+  "selected_pending_assembly_evidence_count": 99,
+  "selected_species_count": 50,
+  "selection_rejection_counts": {
+    "REJECTED_HARD_GATE": 299,
+    "REJECTED_MATERIAL_ALTERNATIVE": 17,
+    "REJECTED_ORIENTATION_ALTERNATIVE": 10,
+    "SELECTED": 140
+  },
+  "state": "PROVISIONAL_NOT_TRAINABLE"
+}
