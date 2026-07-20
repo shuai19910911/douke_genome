@@ -36,7 +36,7 @@ deduplication:
 contexts: [1024, 8192, 32768, 65536, 131072, 262144]
 busco:
   lineage: eudicots_odb10
-  lineage_receipt_sha256: 5059048c88d9bf33813986b561e6f5695ad48da64b0f37e44249c0478512f299
+  lineage_receipt_sha256: 40b7a36b9e3c8e1ea35229962188c0a8444827bb924f527a1ea9dcbaeb3d1915
   lineage_full_tree_sha256: 4905864e6d6dd4aa5f4371b6843a958e03651f4379fb75f5e2729e173920bafe
   expected_busco_version: 5.8.3
   expected_dataset_name: eudicotyledons_odb10

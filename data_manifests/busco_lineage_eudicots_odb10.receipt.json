@@ -16,6 +16,9 @@
   "path_size_inventory_algorithm": "sha256(canonical_json([[relative_path,size],...]))",
   "path_size_inventory_sha256": "aca8681b79615ec4963fd8e2f05e51cce5c266a225d6fac648f04bd7a4425897",
   "schema_version": "1.0",
+  "source_archive_md5": "38ece5baf0523143fc6594030bca4487",
+  "source_index_sha256": "c2615b6ec8b7a65d70ab5c995180e16d5d8b9898b8ff69e620cddb8e9e7f91f5",
+  "source_url": "https://busco-data.ezlab.org/v5/data/lineages/eudicots_odb10.2024-01-08.tar.gz",
   "state": "READY",
   "total_bytes": 740258216
 }
