@@ -1,6 +1,6 @@
 # LegumeGenomeFM：实时执行进度
 
-> 最后更新：2026-07-21 23:04 CST（UTC+08:00）。当前阶段：**精简数据深审收尾＋超长架构候选实现**。正式训练未开始；旧440-source release和旧89M/16K训练合同均已撤销。
+> 最后更新：2026-07-22 07:35 CST（UTC+08:00）。当前阶段：**74-source精简候选集已冻结，等待cold-genus与schema-2打包**。正式训练未开始；旧440-source release和旧89M/16K训练合同均已撤销。
 
 ## 1. 状态总览
 
@@ -13,10 +13,10 @@
 | assembly/annotation初筛 | 已完成 | 167个深审候选；`data_refinement_candidates*` |
 | FASTA–GFF闭合 | 已完成 | 165 PASS、2 FAIL |
 | source provenance/license | 已完成但有排除 | 94 PASS；67需许可证审核、3 incomplete、3 no resolver |
-| BUSCO | 接近完成 | protein 92/92 PASS；genome 86/92 PASS；当前85/92已合并双模式shard |
-| Tiara/UniVec污染审计 | 已完成 | 92/92 PASS；55个legacy-hash-bound、37个direct-receipt-bound |
-| 最终代表与六长度capacity | 等待自动聚合 | 只剩6个genome BUSCO缺口；中黄13 alias已统一 |
-| 精简data release | 未开始 | 旧440-source READY/manifest已删除 |
+| BUSCO | 已完成 | 92/92双模式shard闭合；84 PASS、8个因annotation BUSCO<90%排除 |
+| Tiara/UniVec污染审计 | 已完成 | 92/92 shard闭合；91 PASS、1个primary nuclear fraction不足排除 |
+| 最终代表与六长度capacity | 已完成 | 83个通过最终硬门禁，去材料/方向替代后选择74个代表 |
+| 精简data release | 等待打包 | 候选集和六桶capacity已冻结；cold genera及schema-2 READY尚未冻结 |
 | Nature/架构证据 | 已完成 | 36检索、2,958候选、30个核心记录验证；官方代码commit已固定 |
 | HierMamba候选配置/实现 | 已完成候选代码 | 256K、stride 128、Mamba-2双向core、RC conjoin |
 | 生产Mamba-2/H20 profile | 阻塞 | 当前环境无`mamba_ssm`/`causal_conv1d`；目标H20尚未probe |
@@ -38,26 +38,24 @@
 
 ### 当前深审任务集
 
-`data_manifests/data_refinement_busco_tasks.tsv`含92个候选，即同时通过annotation closure、source provenance和明确`public + open`许可证门禁的候选，覆盖27个物种、13个属。最终source数尚未产生。
+`data_manifests/data_refinement_busco_tasks.tsv`含92个深审候选，覆盖27个物种、13个属。双模式BUSCO、污染、annotation closure和provenance聚合后83个通过硬门禁；再排除7个同材料替代与2个方向等价替代，最终选择74个source、19个物种、13个属。
 
 中黄13材料已通过显式alias统一：`zh13`、`whfsgmzh1310`、`zh13iga1005`、`gmaxzh13`、`gmaxzh13v20`最终只能保留一个代表；不采用模糊substring规则，因此不会误并`Zhongmu_No_1`等其他材料。
+
+最终可训练区间为124,098段、91,922,061,939 bp；1K/8K/32K/64K/128K均有74个eligible source，256K有73个。当前74个代表均依赖明确标注为`structural_proxy`的染色体尺度证据，不能表述为官方`Chromosome`认证；Glycine占50个source，正式采样必须使用近重复权重和跨属平衡，不能按source均匀抽样。
 
 ## 3. SLURM状态
 
 用户当前资源硬规则：只允许向`q02,q03,q04,q05`提交；`cu`和`fat`均禁止且不得作为回退。所有项目submitter、sbatch默认值和Python repair/controller均已锁死到该允许列表，不能通过`PARTITION(S)`环境变量绕过。
 
-当前持久链：
+本轮持久链：
 
-| Job | 作用 | CPU/内存 | 分区 | 状态（2026-07-21 23:04 CST） |
+| Job | 作用 | CPU/内存 | 分区 | 状态（2026-07-22 07:35 CST） |
 |---:|---|---|---|---|
-| 8605100 | 首轮Tiara/UniVec补算 | 4 CPU / 32G | q02 | COMPLETED |
-| 8605101 | 首轮protein BUSCO补算 | 4 CPU / 8G | q02 | COMPLETED |
-| 8605102 | 首轮genome BUSCO tiny补算 | 4 CPU / 48G | q02 | COMPLETED |
-| 8605103 | 持久split-QC控制器 | 1 CPU / 2G | q02 | RUNNING；自动补最后6项 |
-| 8606891 | 当前medium genome BUSCO批次 | 4 CPU / 128G | q02–q05 | 2 RUNNING、1 PENDING、1已完成 |
-| 8605119 | BUSCO/污染/最终代表/capacity聚合 | 4 CPU / 32G | q02–q05 | PENDING (afterok 8605103) |
+| 8605103 | 持久split-QC控制器 | 1 CPU / 2G | q02 | COMPLETED；18:26:27 |
+| 8605119 | reference验证与最终聚合 | 4 CPU / 32G | q02 | COMPLETED；00:01:16 |
 
-controller日志已推进至iteration 7且stderr为空；污染和protein BUSCO已闭合，当前medium批次结束后将继续补剩余large候选。`q02–q05`均有idle/mix节点，但绝不回退`cu/fat`。Hermes cron `c9692ecd758e`每10分钟检查资源、项目链和分区门禁。
+controller在iteration 11达到所有remaining=0，finalizer stdout确认BUSCO full-tree及Tiara/UniVec/BLAST full验证PASS，stderr为空；当前无活动项目SLURM作业。后续CPU任务仍只允许q02–q05，绝不回退`cu/fat`。
 
 ## 4. 本轮代码与合同
 
@@ -115,17 +113,17 @@ Git：`main`；每个里程碑均核对本地HEAD与`origin/main`一致，除正
 - 数据精简单文件：20 passed；
 - HierMamba＋training preflight：13 passed；
 - 最近一次preflight单文件：10 passed；
-- 完整`pytest`：148 passed（37.73 s）；同时BUSCO 708 MiB full-tree verifier、Tiara/UniVec/BLAST full verifier、Python编译、shell语法、全项目SLURM分区门禁和`git diff --check`均PASS。上一轮YAML/JSON全解析亦PASS。
+- 完整`pytest`：148 passed（120.07 s）；最终产物SHA、行数、状态、区间总碱基数，以及BUSCO/Tiara/UniVec/BLAST reference门禁均PASS。
 
 本轮在release闭包审计中发现并修复一个关键坐标问题：sequence store的callable interval使用全局packed offset，而Tiara/UniVec mask使用单条FASTA record本地坐标。finalizer现在先将callable interval转换为record-local坐标再扣mask，并同时输出`record_start_0based`与`store_start`。新增schema-2 manifest只嵌入这些最终区间，sampler和preflight均验证坐标、callable包含关系与六长度capacity。
 
 ## 7. 当前阻塞
 
-1. 还差6个genome BUSCO shard；当前controller正在自动补齐，不需要人工重提。
-2. 最终精简source数、六长度capacity、cold-genus和release hash尚未产生；必须等待8605119完成并验证READY。
+1. cold-genus留出尚未冻结；这会直接改变预训练source集合和正式测试合同，不能在无统计审计时随意指定。
+2. schema-2训练manifest、release receipt和`TRAINING_DATASET_READY`尚未生成；当前状态仍是`CANDIDATE_SET_READY_DATA_NOT_YET_PACKAGED`。
 3. 目标H20环境尚不可访问，无法冻结Mamba-2生产依赖、精确参数量、BF16显存/吞吐、global batch和总token预算。
-4. 正式架构图应在参数与shape实测冻结后生成，避免图文数字先于代码。
+4. 当前74个source均为结构代理证据、且50个属于Glycine；论文必须透明报告并以token/近重复权重和cold-genus设计控制不平衡。
 
 ## 8. 下一步唯一优先任务
 
-让8605103补完最后6个genome BUSCO并闭合92个双模式shard；随后8605119将自动复核BUSCO lineage及Tiara/UniVec/BLAST参考，生成BUSCO/污染/最终代表/六长度capacity机器产物。验证READY后再冻结cold genera并构建schema-2精简data release；全程只用q02–q05。
+基于74个代表的属/物种/容量和近重复结构冻结cold genera；随后运行`build_refined_training_manifest.py`，验证74-source schema-2 manifest、store SHA、六桶容量、release receipt和READY。只有新READY闭合后才能进行sequence-store GC及AutoDL打包。

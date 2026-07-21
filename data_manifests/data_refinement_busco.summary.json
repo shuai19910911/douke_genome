@@ -1,0 +1,21 @@
+{
+  "busco_tsv_sha256": "f62c733c85e5fc8c63c9f9e75e096589c98223f32bad618eaa312e1486dbd506",
+  "busco_version": "5.8.3",
+  "candidate_count": 92,
+  "input_sha256": {
+    "config": "eec7245010cc84be97d52dc82f9094318c55739e70fb04e238b7f73aee431823",
+    "tasks": "f4b2ed4f1e9cfe175f24686a425d58b023e247b555c0a19d161ef8815ac25e80"
+  },
+  "lineage": "eudicots_odb10",
+  "lineage_creation_date": "2024-01-08",
+  "lineage_number_of_buscos": 2326,
+  "lineage_receipt_sha256": "40b7a36b9e3c8e1ea35229962188c0a8444827bb924f527a1ea9dcbaeb3d1915",
+  "minimum_annotation_complete_percent": 90.0,
+  "minimum_genome_complete_percent": 90.0,
+  "schema_version": "1.0",
+  "state": "COMPLETE",
+  "status_counts": {
+    "FAIL": 8,
+    "PASS": 84
+  }
+}

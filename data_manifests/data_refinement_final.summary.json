@@ -1,0 +1,89 @@
+{
+  "context_catalogs": {
+    "1024": {
+      "eligible_source_count": 74,
+      "nonoverlap_window_count": 89706255
+    },
+    "131072": {
+      "eligible_source_count": 74,
+      "nonoverlap_window_count": 665151
+    },
+    "262144": {
+      "eligible_source_count": 73,
+      "nonoverlap_window_count": 321171
+    },
+    "32768": {
+      "eligible_source_count": 74,
+      "nonoverlap_window_count": 2753850
+    },
+    "65536": {
+      "eligible_source_count": 74,
+      "nonoverlap_window_count": 1358122
+    },
+    "8192": {
+      "eligible_source_count": 74,
+      "nonoverlap_window_count": 11161183
+    }
+  },
+  "final_gate_pass_count": 83,
+  "input_candidate_count": 466,
+  "input_sha256": {
+    "busco": "f62c733c85e5fc8c63c9f9e75e096589c98223f32bad618eaa312e1486dbd506",
+    "candidates": "25eea2d99eef498196091e3dfac94446df4e6adb8018372d65a7a682f962fa70",
+    "closure": "4f7927cf028e2d697c60f3d6333c6ca341a8ef64c1c62e2a1cef26744d83fafd",
+    "config": "eec7245010cc84be97d52dc82f9094318c55739e70fb04e238b7f73aee431823",
+    "provenance": "f09d412b8b194ba2276af6dc6c1fb7a83174a048b78d8afbbe633ee46687e023",
+    "record_qc_candidates": "df7e7f4957d4c07b5b2db008cf746791a0b87d47b898ff9475ae9cdc3456de49",
+    "record_qc_masks": "993ee0853fe3a9b0fcab7834f3099e76364b619c5fc38e7904d5a9bbbbc76e6b",
+    "record_qc_records": "dc384ad7ba5ce950f3de162e78f840ecdcd06b4ae0a27801244b4b6ec8dcf68d"
+  },
+  "near_duplicate_weighted_effective_source_count": 69.999999999999,
+  "output_sha256": {
+    "candidates": "20019e407625eb13bbb94d2a9c0d66d6588b964b500df7d006e71b0ae20eb382",
+    "contexts": "443eab6817a1fbb5031ea0326d89b22cc89d18b22c1160d1dbd871ae667e7373",
+    "intervals": "634b8362ee72b53718191888dded44adb2296278756e1b11f3f322b4e365d863",
+    "masks": "dca59f2b4db075a68c47230f73790c3ffa2801c54d61649ee46f0c69c7b8565f",
+    "records": "d61657c6baacce6f974075f5fd912bbb1b7311984321736b8e096186b28dbbc2",
+    "selected": "a05b531815bd6c6a30793bbe4b893ad077ebbc981cc9bf49fff898e1d8d9bdbe"
+  },
+  "required_material_representatives": {
+    "Glycine max|zh13": "98cf7f6c3f3626e4"
+  },
+  "schema_version": "1.0",
+  "selected_by_assembly_evidence": {
+    "structural_proxy": 74
+  },
+  "selected_by_genus": {
+    "Arachis": 3,
+    "Cajanus": 1,
+    "Cercis": 1,
+    "Cicer": 1,
+    "Glycine": 50,
+    "Lablab": 1,
+    "Lens": 2,
+    "Lupinus": 1,
+    "Medicago": 4,
+    "Phaseolus": 5,
+    "Trifolium": 1,
+    "Vicia": 2,
+    "Vigna": 2
+  },
+  "selected_by_source": {
+    "legume_family_legumeinfo": 35,
+    "legumeinfo": 39
+  },
+  "selected_candidate_count": 74,
+  "selected_mask_interval_count": 1583,
+  "selected_multi_member_near_group_count": 3,
+  "selected_near_duplicate_group_count": 70,
+  "selected_primary_record_count": 1259,
+  "selection_status_counts": {
+    "REJECTED_HARD_GATE": 383,
+    "REJECTED_MATERIAL_ALTERNATIVE": 7,
+    "REJECTED_ORIENTATION_ALTERNATIVE": 2,
+    "SELECTED": 74
+  },
+  "state": "CANDIDATE_SET_READY_DATA_NOT_YET_PACKAGED",
+  "trainable_bases_at_minimum_context": 91922061939,
+  "trainable_interval_count": 124098
+}
