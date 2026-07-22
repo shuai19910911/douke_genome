@@ -1,0 +1,82 @@
+{
+  "schema_version": "proposed-pretraining-split-evidence-v1",
+  "generated_at": "2026-07-22T08:53:02+08:00",
+  "status": "PROPOSED_NOT_FROZEN_NOT_A_TRAINING_RELEASE",
+  "source_sha256": {
+    "data_refinement_final.selected.tsv": "a05b531815bd6c6a30793bbe4b893ad077ebbc981cc9bf49fff898e1d8d9bdbe",
+    "data_refinement_final.intervals.tsv": "634b8362ee72b53718191888dded44adb2296278756e1b11f3f322b4e365d863",
+    "data_refinement_final.contexts.tsv": "443eab6817a1fbb5031ea0326d89b22cc89d18b22c1160d1dbd871ae667e7373"
+  },
+  "split_design": {
+    "pretraining_train_and_internal_validation_genera": "all selected genera except Arachis, Phaseolus and Vicia",
+    "cold_development_genera": ["Phaseolus"],
+    "sealed_cold_test_genera": ["Arachis", "Vicia"],
+    "rationale": "Phaseolus supplies a multi-species unseen-genus development set; Arachis supplies a phylogenetically distinct crop/wild pair and Vicia supplies a giant-genome, long-locus sealed test. No cold genus may enter pretraining."
+  },
+  "capacity_by_split": {
+    "all_selected": {
+      "sources": 74,
+      "species": 19,
+      "genera": 13,
+      "trainable_bp": 91922061939,
+      "eligible_sources": {"1024": 74, "8192": 74, "32768": 74, "65536": 74, "131072": 74, "262144": 73},
+      "eligible_nonoverlap_windows": {"1024": 89706255, "8192": 11161183, "32768": 2753850, "65536": 1358122, "131072": 665151, "262144": 321171}
+    },
+    "pretraining_pool": {
+      "sources": 64,
+      "species": 13,
+      "genera": 10,
+      "trainable_bp": 60862937919,
+      "eligible_sources": {"1024": 64, "8192": 64, "32768": 64, "65536": 64, "131072": 64, "262144": 63},
+      "eligible_nonoverlap_windows": {"1024": 59387583, "8192": 7382203, "32768": 1818464, "65536": 896712, "131072": 440553, "262144": 214435}
+    },
+    "cold_development_phaseolus": {
+      "sources": 5,
+      "species": 3,
+      "genera": 1,
+      "trainable_bp": 2639294034,
+      "eligible_sources": {"1024": 5, "8192": 5, "32768": 5, "65536": 5, "131072": 5, "262144": 5},
+      "eligible_nonoverlap_windows": {"1024": 2576726, "8192": 321442, "32768": 79812, "65536": 39522, "131072": 19425, "262144": 9442}
+    },
+    "sealed_cold_test_arachis_vicia": {
+      "sources": 5,
+      "species": 3,
+      "genera": 2,
+      "trainable_bp": 28419829986,
+      "eligible_sources": {"1024": 5, "8192": 5, "32768": 5, "65536": 5, "131072": 5, "262144": 5},
+      "eligible_nonoverlap_windows": {"1024": 27741946, "8192": 3457538, "32768": 855574, "65536": 421888, "131072": 205173, "262144": 97294}
+    }
+  },
+  "raw_gff_feature_upper_bounds": {
+    "interpretation": "Raw annotation rows and gene-span counts before transcript selection, orthology grouping, near-duplicate control or split assignment. These are source-label upper bounds, not benchmark sample counts.",
+    "all_selected": {
+      "gene_rows": 3690769,
+      "mRNA_rows": 4823254,
+      "exon_rows": 22412166,
+      "CDS_rows": 25931250,
+      "gene_span_ge_bp": {"1024": 2926056, "8192": 346276, "32768": 14412, "65536": 2570, "131072": 533, "262144": 67}
+    },
+    "pretraining_pool": {
+      "gene_rows": 3316153,
+      "mRNA_rows": 4340841,
+      "exon_rows": 20920944,
+      "CDS_rows": 23230026,
+      "gene_span_ge_bp": {"1024": 2619570, "8192": 316152, "32768": 13631, "65536": 2441, "131072": 506, "262144": 65}
+    },
+    "cold_development_phaseolus": {
+      "gene_rows": 143155,
+      "mRNA_rows": 206125,
+      "exon_rows": 0,
+      "CDS_rows": 1195540,
+      "gene_span_ge_bp": {"1024": 120907, "8192": 12824, "32768": 356, "65536": 44, "131072": 6, "262144": 1}
+    },
+    "sealed_cold_test_arachis_vicia": {
+      "gene_rows": 231461,
+      "mRNA_rows": 276288,
+      "exon_rows": 1491222,
+      "CDS_rows": 1505684,
+      "gene_span_ge_bp": {"1024": 185579, "8192": 17300, "32768": 425, "65536": 85, "131072": 21, "262144": 1}
+    },
+    "schema_caveat": "The Phaseolus source GFF files do not emit exon rows even though they emit mRNA/CDS/UTR rows. Exon counts are therefore not cross-source comparable until normalized by a benchmark builder."
+  }
+}

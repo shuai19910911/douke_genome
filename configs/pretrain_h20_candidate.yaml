@@ -36,7 +36,11 @@ model:
     mechanism: whole_model_conjoin
     combine: aligned_logit_mean
     exact_output_contract: true
-  parameter_count: pending_implementation_and_unique_parameter_audit
+  parameter_count: 314669504_design_formula_pending_h20_unique_parameter_audit
+  parameter_count_components:
+    local_encoder_decoder_and_norm: 111470528
+    bidirectional_mamba2_mixers: 203198976
+  parameter_count_status: design_formula_only_not_runtime_frozen
 contexts: [1024, 8192, 32768, 65536, 131072, 262144]
 context_token_fractions:
   1024: 0.10
@@ -65,6 +69,7 @@ objective:
   name: span_mlm
   mask_ratio: 0.15
   mean_span_length: 3.0
+  long_context_objective_status: mean3_implemented_multiscale_span_spike_required_before_freeze
   replacement_probabilities:
     mask: 0.8
     random_acgt: 0.1

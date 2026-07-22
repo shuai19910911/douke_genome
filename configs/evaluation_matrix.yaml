@@ -1,8 +1,11 @@
-schema_version: "2.0-candidate"
-contract_status: pending_refined_data_and_h20_freeze
+schema_version: "3.0-candidate"
+contract_status: proposed_cold_genus_and_specialist_tasks_not_frozen
 formal_contexts: [1024, 8192, 32768, 65536, 131072, 262144]
-pretraining_cold_genera: []
-cold_genus_status: pending_rebuild_after_final_data_selection
+pretraining_cold_genera: [Arachis, Phaseolus, Vicia]
+cold_genus_roles:
+  development: [Phaseolus]
+  sealed_test: [Arachis, Vicia]
+cold_genus_status: proposed_from_74_source_capacity_audit_not_yet_in_schema2_release
 common_leakage_groups:
   - orientation_group_id
   - near_duplicate_group_id
@@ -24,8 +27,13 @@ baseline_suite:
     - unbalanced_species_sampling
   external:
     - GPN
-    - AgroNT
-    - Nucleotide_Transformer_v2_50M
+    - AgroNT_1B
+    - PlantCAD2_Small_88M
+    - PlantCAD2_Medium_311M
+    - PlantCAD2_Large_694M
+    - Nucleotide_Transformer_v2_500M_multi_species
+    - Evo2_7B
+    - Evo2_40B_if_h20_runtime_gate_passes
     - PlantCaduceus
     - Caduceus
     - HyenaDNA
@@ -196,3 +204,67 @@ tasks:
     labels: conserved versus rearranged blocks
     split: complete species-pair holdout
     metrics: [macro_F1, auPRC]
+  - id: cold_giant_gene_reconstruction
+    category: long_context
+    core: true
+    availability: buildable_after_cross_source_gff_normalization
+    unit: complete gene locus with nested 8192-to-262144-bp contexts
+    labels: normalized CDS intron UTR and intergenic segmentation
+    split: Phaseolus cold development; Arachis and Vicia sealed test; orthogroup grouped
+    metrics: [macro_F1, boundary_F1, exact_transcript_match]
+  - id: soybean_nodule_cell_program
+    category: legume_specialist
+    core: true
+    availability: public_source_verified_GSE226149_not_built
+    unit: soybean gene with promoter and complete locus context
+    labels: root infection non_fixing fixing senescing or shared program
+    split: chromosome and orthogroup grouped
+    metrics: [macro_auPRC, hierarchical_F1, macro_F1]
+  - id: symbiosis_gene_function_retrieval
+    category: legume_specialist
+    core: true
+    availability: curated_function_set_required
+    unit: full gene plus flanking sequence
+    labels: nod_factor_perception signalling infection organogenesis autoregulation fixation
+    split: leave_one_genus_out and orthogroup grouped
+    metrics: [MRR, recall_at_5, hierarchical_F1]
+  - id: rhg1_rhg4_scn_resistance
+    category: legume_specialist
+    core: true
+    availability: phenotype_source_verified_sequence_linkage_pending
+    unit: Rhg1 long repeat locus plus Rhg4 locus per accession
+    labels: copy_haplotype female_index and ordinal resistance by HG type
+    split: accession lineage and breeding family grouped
+    metrics: [Spearman, ordinal_macro_F1, macro_auPRC]
+  - id: soybean_flowering_geographic_adaptation
+    category: legume_specialist
+    core: true
+    availability: public_915_and_17019_accession_sources_verified_not_built
+    unit: local and multi-locus haplotypes plus explicit environment covariates
+    labels: flowering time maturity group and environmental PCs
+    split: pangenome lineage geographic region and environment grouped
+    metrics: [Spearman, R2, normalized_RMSE, worst_region_R2]
+  - id: peanut_pangenome_sv_trait
+    category: legume_specialist
+    core: true
+    availability: public_8_genome_269_accession_source_verified_not_built
+    unit: Arachis SV or PAV with 32768-to-262144-bp context
+    labels: core_accessory status seed length seed weight and validated candidate rank
+    split: sealed cold Arachis accessions and SV-family grouping
+    metrics: [auPRC, MRR, Spearman, R2]
+  - id: glycine_wgd_homeolog_retrieval
+    category: legume_specialist
+    core: true
+    availability: buildable_after_frozen_synteny_and_orthology
+    unit: paired or retrieval gene loci with nested flanking contexts
+    labels: syntenic homeolog ortholog or other paralog
+    split: complete homeolog family and material grouping
+    metrics: [MRR, recall_at_1, recall_at_5, pair_auROC]
+  - id: soynam_leave_family_out_prediction
+    category: breeding
+    core: true
+    availability: public_5600_RIL_genotype_source_verified_trait_receipts_pending
+    unit: RIL genotype with LD-block sequence embeddings
+    labels: one audited quantitative trait and environment per dataset receipt
+    split: leave_family_out and held_environment
+    metrics: [Pearson, Spearman, R2, normalized_RMSE]

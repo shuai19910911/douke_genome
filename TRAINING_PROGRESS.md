@@ -1,6 +1,6 @@
 # LegumeGenomeFM：实时执行进度
 
-> 最后更新：2026-07-22 07:35 CST（UTC+08:00）。当前阶段：**74-source精简候选集已冻结，等待cold-genus与schema-2打包**。正式训练未开始；旧440-source release和旧89M/16K训练合同均已撤销。
+> 最后更新：2026-07-22 10:25 CST（UTC+08:00）。当前阶段：**74-source精简候选集已冻结，详细研究设计与cold-genus提案已完成，等待schema-2打包和生产trainer**。正式训练未开始；旧440-source release和旧89M/16K训练合同均已撤销。
 
 ## 1. 状态总览
 
@@ -19,8 +19,10 @@
 | 精简data release | 等待打包 | 候选集和六桶capacity已冻结；cold genera及schema-2 READY尚未冻结 |
 | Nature/架构证据 | 已完成 | 36检索、2,958候选、30个核心记录验证；官方代码commit已固定 |
 | HierMamba候选配置/实现 | 已完成候选代码 | 256K、stride 128、Mamba-2双向core、RC conjoin |
+| 详细研究/benchmark合同 | 已完成v1 | `LEGUMEGENOMEFM_RESEARCH_DESIGN.md`及Word版；22项详细状态表，机器矩阵共28项（含待来源扩展项） |
+| 生产HierMamba trainer | 未实现 | 当前`train_pretrain.py`仍连接固定长度`LegumeGenomeModel`，不可用于正式HierMamba训练 |
 | 生产Mamba-2/H20 profile | 阻塞 | 当前环境无`mamba_ssm`/`causal_conv1d`；目标H20尚未probe |
-| 正式参数量与训练预算 | 未冻结 | preflight要求整数参数量和H20 PASS receipt |
+| 正式参数量与训练预算 | 设计公式完成、运行时未冻结 | 候选314,669,504；仍需H20唯一Parameter与PASS receipt |
 | 正式预训练 | 未开始 | 无正式PID、日志或checkpoint |
 
 ## 2. 数据审计实况
@@ -81,6 +83,7 @@ controller在iteration 11达到所有remaining=0，finalizer stdout确认BUSCO f
 - U-Net base-resolution decoder；
 - 完整模型正向/RC双路logit对齐均值；
 - loss接口返回`loss_sum`和`masked_token_count`，供DDP全局归一化。
+- 当前公式推导总参数量314,669,504（local/decoder/norm 111,470,528；24层双向Mamba-2 mixer 203,198,976），仍须H20运行时去重审计。
 
 生产Mamba-2缺失时模型在大参数分配前立即拒绝，不以Identity或旧卷积替代。preflight只有在`contract_status: frozen`、参数量整数、H20六长度profile、2/3卡DDP、显存余量、kernel对比和新data release均PASS时才放行。
 
@@ -88,7 +91,8 @@ controller在iteration 11达到所有remaining=0，finalizer stdout确认BUSCO f
 
 - `TRAINING_PLAN.md`已从头重写，覆盖科学问题、Nature证据、数据、训练、评测、统计、图件、风险、迁移与停止标准。
 - `MODEL_ARCHITECTURE.md`已重写为唯一HierMamba候选，旧89M数字不再作为正式合同。
-- 旧`README.md`已删除，项目最终只保留任务要求的三个Markdown文档。
+- 旧`README.md`已删除；用户后续明确要求增加详细研究设计，因此新增`LEGUMEGENOMEFM_RESEARCH_DESIGN.md`和对应Word文档，不恢复旧方案文档。
+- `research/baseline_model_evidence.tsv`记录AgroNT、PlantCAD2、NT-v2、Evo 2等官方论文、模型卡、许可、参数、长度与文献值；`research/proposed_pretraining_split_evidence.json`记录cold split提案及可复核容量。
 - 旧440-source `TRAINING_DATASET_READY`、dataset、release和summary已删除。
 - 旧121-GB AutoDL release和旧环境验收payload已不存在。
 - 已删除21个根目录BUSCO日志、旧pilot目录、失败/取消数组日志和Python cache，共81个无用路径；两轮许可证门禁收紧后又删除46个已排除候选shard（约5.78 MB）。当前仅保留92项任务集实际引用的shard。
@@ -113,17 +117,18 @@ Git：`main`；每个里程碑均核对本地HEAD与`origin/main`一致，除正
 - 数据精简单文件：20 passed；
 - HierMamba＋training preflight：13 passed；
 - 最近一次preflight单文件：10 passed；
-- 完整`pytest`：148 passed（120.07 s）；最终产物SHA、行数、状态、区间总碱基数，以及BUSCO/Tiara/UniVec/BLAST reference门禁均PASS。
+- 完整`pytest`：152 passed（138.37 s）；最终产物SHA、行数、状态、区间总碱基数，以及BUSCO/Tiara/UniVec/BLAST reference门禁均PASS。
 
 本轮在release闭包审计中发现并修复一个关键坐标问题：sequence store的callable interval使用全局packed offset，而Tiara/UniVec mask使用单条FASTA record本地坐标。finalizer现在先将callable interval转换为record-local坐标再扣mask，并同时输出`record_start_0based`与`store_start`。新增schema-2 manifest只嵌入这些最终区间，sampler和preflight均验证坐标、callable包含关系与六长度capacity。
 
 ## 7. 当前阻塞
 
-1. cold-genus留出尚未冻结；这会直接改变预训练source集合和正式测试合同，不能在无统计审计时随意指定。
+1. cold-genus留出已完成容量审计并提出Phaseolus development、Arachis/Vicia sealed test，但尚未写入schema-2 release；提案对应64-source/60.863 Gbp预训练池、5-source/2.639 Gbp开发集和5-source/28.420 Gbp封存测试集。
 2. schema-2训练manifest、release receipt和`TRAINING_DATASET_READY`尚未生成；当前状态仍是`CANDIDATE_SET_READY_DATA_NOT_YET_PACKAGED`。
 3. 目标H20环境尚不可访问，无法冻结Mamba-2生产依赖、精确参数量、BF16显存/吞吐、global batch和总token预算。
 4. 当前74个source均为结构代理证据、且50个属于Glycine；论文必须透明报告并以token/近重复权重和cold-genus设计控制不平衡。
+5. 生产HierMamba trainer尚未实现；现有legacy固定长度trainer不能执行候选混合长度合同。平均3-bp span MLM也必须先与multi-scale span masking做长程利用spike。
 
 ## 8. 下一步唯一优先任务
 
-基于74个代表的属/物种/容量和近重复结构冻结cold genera；随后运行`build_refined_training_manifest.py`，验证74-source schema-2 manifest、store SHA、六桶容量、release receipt和READY。只有新READY闭合后才能进行sequence-store GC及AutoDL打包。
+先把已审计的Phaseolus/Arachis/Vicia提案写入并验证schema-2 release，再实现生产HierMamba mixed-length trainer和multi-scale masking spike。只有release READY、trainer等价测试和H20六长度profile全部闭合后，才能冻结token预算并启动正式训练。
